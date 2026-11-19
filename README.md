@@ -1,1 +1,1 @@
-# -itminan-app
+# itminan-app
