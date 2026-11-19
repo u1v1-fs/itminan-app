@@ -1635,8 +1635,8 @@ function isAyyamAlBid(date){
 function dayTheme(date){
   var d=date.getDay(); // 0 Sun..6 Sat
   if(d===5) return 'Friday (Jumu\'ah)';
-  if(d===1||d===4) return 'Monday & Thursday (Sunnah)';
-  return 'Daily';
+  if(d===1||d===4) return '';
+  return '';
 }
 
 // ---------- Recommendations ----------
@@ -2323,7 +2323,12 @@ function renderPW(){
   var cFound = CITIES.find(c=>Math.abs(c.lat-state.lat)<0.5 && Math.abs(c.lon-state.lon)<0.5);
   var cLabel = cFound ? cFound.name : 'Custom Location';
   var tzStr = 'UTC' + (state.tz >= 0 ? '+' + state.tz : state.tz);
-  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> (${state.lat.toFixed(3)}, ${state.lon.toFixed(3)} · ${tzStr}) • ${state.method} • ${state.asr} <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
+  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> 
+  (${state.lat.toFixed(3)}, 
+  ${state.lon.toFixed(3)} · 
+  ${tzStr}) • 
+  
+  <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
 }
 
 function renderToday(){
