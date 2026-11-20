@@ -890,13 +890,13 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
         <div class="home-hijri-row" id="homeHijriRow"></div>
         <div class="home-loc-row">
           <span id="homeLocText">📍 —</span>
-          <!-- <button class="btn-chip" style="padding:3px 8px;font-size:10.5px;" onclick="detectGPS()">📍 Detect GPS</button> -->
+          <button class="btn-chip" style="padding:3px 8px;font-size:10.5px;" onclick="detectGPS()">📍 Detect GPS</button>
         </div>
       </div>
     </div>
     <div class="menu-layout">
       <div class="side-menu">
-        <!-- <button class="side-btn home-side active" data-home="prayer">Prayer Windows</button> -->
+        <button class="side-btn home-side active" data-home="prayer">Prayer Windows</button>
         <button class="side-btn home-side" data-home="rec">Recommended Now</button>
         <button class="side-btn home-side" data-home="surahs">Recommended Surahs</button>
         <button class="side-btn home-side" data-home="hadith">Hadith for This Hour</button>
@@ -1491,11 +1491,19 @@ function computePrayerTimes(date){
   asr += (parseFloat(tm.asr)||0)/60;
   maghrib += (parseFloat(tm.maghrib)||0)/60;
   isha += (parseFloat(tm.isha)||0)/60;
-  var duha=sunrise+0.33;
-  var fajrNext = fajr+24;
-  var nightLen = fajrNext-isha;
-  var tahajjud = isha + nightLen*(2/3);
-  if(tahajjud>=24) tahajjud-=24;
+  if(!isFinite(dhuhr)) dhuhr = 12;
+  if(!isFinite(sunrise)) sunrise = dhuhr - 6;
+  if(!isFinite(sunset)) sunset = dhuhr + 6;
+  var nightDur = Math.max(4, (sunrise + 24) - sunset);
+  if(!isFinite(fajr)) fajr = sunrise - nightDur * (fAng / 60);
+  if(!isFinite(isha)) isha = (state.method === 'Umm al-Qura') ? (sunset + 1.5) : (sunset + nightDur * (iAng / 60));
+  if(!isFinite(asr)) asr = dhuhr + 3.5;
+  var maghrib = sunset;
+  var duha = sunrise + 0.33;
+  var fajrNext = fajr + 24;
+  var nightLen = Math.max(2, fajrNext - isha);
+  var tahajjud = isha + nightLen * (2/3);
+  if(tahajjud >= 24) tahajjud -= 24;
   return {fajr, sunrise, duha, dhuhr, asr, maghrib, sunset, isha, tahajjud, midnight:(isha+fajrNext)/2};
 }
 
@@ -1651,8 +1659,8 @@ function isAyyamAlBid(date){
 function dayTheme(date){
   var d=date.getDay(); // 0 Sun..6 Sat
   if(d===5) return 'Friday (Jumu\'ah)';
-  if(d===1||d===4) return '';
-  return '';
+  if(d===1||d===4) return 'Monday & Thursday (Sunnah)';
+  return 'Daily';
 }
 
 // ---------- Recommendations ----------
@@ -2547,11 +2555,7 @@ function renderPW(){
   pws.forEach((el,i)=>{ el.classList.toggle('active', i===activeIdx); });
   var cLabel = getResolvedCityName();
   var tzStr = 'UTC' + (state.tz >= 0 ? '+' + state.tz : state.tz);
-  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> (
-  ${state.lat.toFixed(3)}, 
-  ${state.lon.toFixed(3)} · 
-  ${tzStr}) •   
-  <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
+  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> (${state.lat.toFixed(3)}, ${state.lon.toFixed(3)} · ${tzStr}) • ${state.method} • ${state.asr} <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
 }
 
 function renderToday(){
@@ -2562,7 +2566,7 @@ function renderToday(){
   html += `<span class="badge gold">${dayTheme(now)}</span></div>`;
   var cityName = getResolvedCityName();
   html += `<div style="margin-top:6px;font-size:11px;color:var(--muted);">Location: ${state.lat.toFixed(4)}, ${state.lon.toFixed(4)} (${cityName}) <button style="padding:2px 8px;border-radius:6px;background:var(--card2);font-size:10px;margin-left:6px;" onclick="detectGPS()">Detect GPS</button></div>`;
-  // $('todayInfo').innerHTML = html;
+  $('todayInfo').innerHTML = html;
 }
 
 function renderRecs(){
@@ -3719,6 +3723,27 @@ function getResolvedCityName(){
   return 'Current Location';
 }
 
+async function resolveTimezoneForCoords(lat, lon, forceUpdate){
+  if(!navigator.onLine) return null;
+  try {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&current=temperature_2m&timezone=auto';
+    var res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) return null;
+    var data = await res.json();
+    if(data && typeof data.utc_offset_seconds === 'number'){
+      var offsetHrs = Math.round((data.utc_offset_seconds / 3600) * 100) / 100;
+      if(forceUpdate || Math.abs(state.tz - offsetHrs) >= 0.25){
+        state.tz = offsetHrs;
+        save('noor_tz', state.tz);
+        updateCityFields();
+        refreshHome();
+      }
+      return offsetHrs;
+    }
+  } catch(_){}
+  return null;
+}
+
 var _revGeoLastKey = '';
 async function reverseGeocodeCity(lat, lon){
   var key = lat.toFixed(2) + ',' + lon.toFixed(2);
@@ -3793,7 +3818,8 @@ function applyDetectedCoords(lat, lon, acc, mode, labelHint, silent){
   updateCityFields();
   refreshHome();
   if(typeof renderQibla === 'function') renderQibla();
-  // if(typeof renderToday === 'function') renderToday();
+  if(typeof renderToday === 'function') renderToday();
+  resolveTimezoneForCoords(state.lat, state.lon, false);
   if(!labelHint){
     reverseGeocodeCity(state.lat, state.lon);
   }
@@ -5251,8 +5277,8 @@ function bindSettingsTabEvents(tab){
     });
     var at = $('asrType'); if(at) at.addEventListener('change', e=>{ state.asr=e.target.value; save('noor_asr',e.target.value); refreshHome(); });
     var cp = $('cityPreset'); if(cp) cp.addEventListener('change', e=>{ if(e.target.value==='__custom__'){ save('noor_loc_mode','auto'); detectGPS({ silent: false }); return; } var c = CITIES.find(x=>x.name===e.target.value); if(c){ state.lat=c.lat; state.lon=c.lon; state.tz=c.tz; state.cityName=c.name; save('noor_lat',c.lat); save('noor_lon',c.lon); save('noor_tz',c.tz); save('noor_city_name',c.name); save('noor_loc_mode','preset'); updateCityFields(); refreshHome(); toast('City set to '+c.name); } });
-    var li = $('latInput'); if(li){ li.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lat=v; state.cityName=''; save('noor_lat',v); save('noor_city_name',''); save('noor_loc_mode','preset'); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
-    var lo = $('lonInput'); if(lo){ lo.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lon=v; state.cityName=''; save('noor_lon',v); save('noor_city_name',''); save('noor_loc_mode','preset'); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
+    var li = $('latInput'); if(li){ li.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v) && v>=-90 && v<=90){ state.lat=v; state.cityName=''; save('noor_lat',v); save('noor_city_name',''); save('noor_loc_mode','preset'); resolveTimezoneForCoords(state.lat, state.lon, false); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
+    var lo = $('lonInput'); if(lo){ lo.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v) && v>=-180 && v<=180){ state.lon=v; state.cityName=''; save('noor_lon',v); save('noor_city_name',''); save('noor_loc_mode','preset'); resolveTimezoneForCoords(state.lat, state.lon, false); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
     var tz = $('tzInput'); if(tz){ tz.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.tz=v; save('noor_tz',v); refreshHome(); } }); }
     var gps = $('gpsBtn'); if(gps) gps.addEventListener('click', () => detectGPS({ silent: false }));
     var aip = $('approxIpBtn'); if(aip) aip.addEventListener('click', async () => { toast('Detecting approximate network location...'); var ok = await fallbackIPLocation(false); if(!ok) toast('Network location unavailable offline.'); });
@@ -5666,14 +5692,13 @@ function renderHadithHour(){
 window.nextHadith = function(){ _hadithOffset++; renderHadithHour(); };
 function renderHomeTab(tab){
   var container = $('homeContent'); if(!container) return;
-  // if(tab==='prayer'){
-  //   // container.innerHTML = '<div class="card"><h3>Prayer Windows</h3><div class="pw-grid" id="pwGrid"></div><div class="muted" id="locLabel" style="margin-top:8px;"></div></div>';
-  //   // renderPW();
-  //   renderRecs();
-  // } else if(tab==='today'){
-  //   container.innerHTML = '<div class="card"><h3>Today</h3><div id="todayInfo"></div></div>';
-  //   renderToday();
-    if(tab==='rec'){
+  if(tab==='prayer'){
+    container.innerHTML = '<div class="card"><h3>Prayer Windows</h3><div class="pw-grid" id="pwGrid"></div><div class="muted" id="locLabel" style="margin-top:8px;"></div></div>';
+    renderPW();
+  } else if(tab==='today'){
+    container.innerHTML = '<div class="card"><h3>Today</h3><div id="todayInfo"></div></div>';
+    renderToday();
+  } else if(tab==='rec'){
     container.innerHTML = '<div class="card"><h3>Recommended Now</h3><div id="recNow"></div></div>';
     renderRecs();
   } else if(tab==='surahs'){
