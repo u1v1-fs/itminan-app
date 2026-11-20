@@ -1235,28 +1235,51 @@ const RECITERS = [
 ];
 
 const CITIES = [
-  {name:'Hyderabad', lat:17.3850, lon:78.4867, tz:5.5},
-  {name:'Delhi', lat:28.6139, lon:77.2090, tz:5.5},
-  {name:'Mumbai', lat:19.0760, lon:72.8777, tz:5.5},
-  {name:'Bengaluru', lat:12.9716, lon:77.5946, tz:5.5},
-  {name:'Chennai', lat:13.0827, lon:80.2707, tz:5.5},
-  {name:'Kolkata', lat:22.5726, lon:88.3639, tz:5.5},
-  {name:'Lucknow', lat:26.8467, lon:80.9462, tz:5.5},
-  {name:'Makkah', lat:21.4225, lon:39.8262, tz:3},
-  {name:'Madinah', lat:24.4672, lon:39.6110, tz:3},
-  {name:'Riyadh', lat:24.7136, lon:46.6753, tz:3},
-  {name:'Dubai', lat:25.2048, lon:55.2708, tz:4},
-  {name:'Cairo', lat:30.0444, lon:31.2357, tz:2},
-  {name:'Karachi', lat:24.8607, lon:67.0011, tz:5},
-  {name:'Lahore', lat:31.5204, lon:74.3587, tz:5},
-  {name:'Dhaka', lat:23.8103, lon:90.4125, tz:6},
-  {name:'Istanbul', lat:41.0082, lon:28.9784, tz:3},
-  {name:'Kuala Lumpur', lat:3.1390, lon:101.6869, tz:8},
-  {name:'Jakarta', lat:-6.2088, lon:106.8456, tz:7},
-  {name:'London', lat:51.5074, lon:-0.1278, tz:0},
-  {name:'New York', lat:40.7128, lon:-74.0060, tz:-5},
-  {name:'Toronto', lat:43.6532, lon:-79.3832, tz:-5},
+  {name:'Hyderabad', lat:17.3850, lon:78.4867, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Delhi', lat:28.6139, lon:77.2090, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Mumbai', lat:19.0760, lon:72.8777, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Bengaluru', lat:12.9716, lon:77.5946, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Chennai', lat:13.0827, lon:80.2707, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Kolkata', lat:22.5726, lon:88.3639, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Lucknow', lat:26.8467, lon:80.9462, tz:5.5, method:'Karachi', asr:'Hanafi'},
+  {name:'Makkah', lat:21.4225, lon:39.8262, tz:3, method:'Umm al-Qura', asr:'Standard'},
+  {name:'Madinah', lat:24.4672, lon:39.6110, tz:3, method:'Umm al-Qura', asr:'Standard'},
+  {name:'Riyadh', lat:24.7136, lon:46.6753, tz:3, method:'Umm al-Qura', asr:'Standard'},
+  {name:'Dubai', lat:25.2048, lon:55.2708, tz:4, method:'Umm al-Qura', asr:'Standard'},
+  {name:'Cairo', lat:30.0444, lon:31.2357, tz:2, method:'Egyptian', asr:'Standard'},
+  {name:'Karachi', lat:24.8607, lon:67.0011, tz:5, method:'Karachi', asr:'Hanafi'},
+  {name:'Lahore', lat:31.5204, lon:74.3587, tz:5, method:'Karachi', asr:'Hanafi'},
+  {name:'Dhaka', lat:23.8103, lon:90.4125, tz:6, method:'Karachi', asr:'Hanafi'},
+  {name:'Istanbul', lat:41.0082, lon:28.9784, tz:3, method:'MWL', asr:'Hanafi'},
+  {name:'Kuala Lumpur', lat:3.1390, lon:101.6869, tz:8, method:'MWL', asr:'Standard'},
+  {name:'Jakarta', lat:-6.2088, lon:106.8456, tz:7, method:'MWL', asr:'Standard'},
+  {name:'London', lat:51.5074, lon:-0.1278, tz:0, method:'MWL', asr:'Standard'},
+  {name:'New York', lat:40.7128, lon:-74.0060, tz:-5, method:'ISNA', asr:'Standard'},
+  {name:'Toronto', lat:43.6532, lon:-79.3832, tz:-5, method:'ISNA', asr:'Standard'},
 ];
+
+function inferRegionDefaults(lat, lon, cityName){
+  var n = String(cityName || '').toLowerCase();
+  if(n.indexOf('makkah') !== -1 || n.indexOf('madinah') !== -1 || n.indexOf('riyadh') !== -1 || n.indexOf('jeddah') !== -1 || n.indexOf('saudi') !== -1){
+    return { method:'Umm al-Qura', asr:'Standard' };
+  }
+  if(n.indexOf('dubai') !== -1 || n.indexOf('abu dhabi') !== -1 || n.indexOf('doha') !== -1 || n.indexOf('kuwait') !== -1 || n.indexOf('muscat') !== -1){
+    return { method:'Umm al-Qura', asr:'Standard' };
+  }
+  if(n.indexOf('cairo') !== -1 || n.indexOf('egypt') !== -1){
+    return { method:'Egyptian', asr:'Standard' };
+  }
+  if(n.indexOf('istanbul') !== -1 || n.indexOf('ankara') !== -1 || n.indexOf('turkey') !== -1){
+    return { method:'MWL', asr:'Hanafi' };
+  }
+  if(n.indexOf('new york') !== -1 || n.indexOf('toronto') !== -1 || n.indexOf('chicago') !== -1 || n.indexOf('houston') !== -1 || (lat >= 15 && lat <= 72 && lon >= -168 && lon <= -52)){
+    return { method:'ISNA', asr:'Standard' };
+  }
+  if((lat >= 6 && lat <= 37 && lon >= 66 && lon <= 98) || (lat >= 23 && lat <= 38 && lon >= 60 && lon <= 76)){
+    return { method:'Karachi', asr:'Hanafi' };
+  }
+  return { method:'MWL', asr:'Standard' };
+}
 
 const METHOD_ANGLES = {
   Karachi: {fajr:18, isha:18, label:'Univ. of Islamic Sciences, Karachi (India/Pak)'},
@@ -3744,6 +3767,88 @@ async function resolveTimezoneForCoords(lat, lon, forceUpdate){
   return null;
 }
 
+async function searchWorldCities(query){
+  var q = String(query || '').trim();
+  var box = $('citySearchResults');
+  if(!q){
+    if(box) box.innerHTML = '';
+    return;
+  }
+  // Instant offline match against CITIES first
+  var localMatches = CITIES.filter(function(c){ return c.name.toLowerCase().indexOf(q.toLowerCase()) !== -1; }).map(function(c){
+    return { name: c.name, region: 'Preset City', country: '', lat: c.lat, lon: c.lon, tz: c.tz, method: c.method, asr: c.asr };
+  });
+  var results = localMatches.slice();
+  if(navigator.onLine){
+    try {
+      var url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=6&language=en&format=json';
+      var res = await fetch(url, { cache: 'no-store' });
+      if(res.ok){
+        var data = await res.json();
+        if(data && Array.isArray(data.results)){
+          data.results.forEach(function(r){
+            var tzHrs = (typeof r.utc_offset_seconds === 'number') ? Math.round((r.utc_offset_seconds / 3600) * 100) / 100 : Math.round((r.longitude / 15) * 2) / 2;
+            var labelParts = [r.name];
+            if(r.admin1 && r.admin1 !== r.name) labelParts.push(r.admin1);
+            if(r.country) labelParts.push(r.country);
+            var inf = inferRegionDefaults(r.latitude, r.longitude, labelParts.join(', '));
+            results.push({
+              name: r.name,
+              fullLabel: labelParts.join(', '),
+              region: r.admin1 || '',
+              country: r.country || '',
+              lat: parseFloat(Number(r.latitude).toFixed(4)),
+              lon: parseFloat(Number(r.longitude).toFixed(4)),
+              tz: tzHrs,
+              method: inf.method,
+              asr: inf.asr
+            });
+          });
+        }
+      }
+    } catch(_){}
+  }
+  if(!box) return;
+  if(!results.length){
+    box.innerHTML = '<div class="muted" style="padding:6px;">No matching cities found. Try another spelling or enter Latitude &amp; Longitude manually.</div>';
+    return;
+  }
+  window._lastCitySearchResults = results;
+  box.innerHTML = results.slice(0, 6).map(function(item, idx){
+    var sub = item.fullLabel || [item.region, item.country].filter(Boolean).join(', ');
+    var tzStr = (item.tz >= 0 ? '+' : '') + item.tz + 'h';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;background:rgba(10,22,18,.55);border:1px solid rgba(212,175,55,.22);font-size:11.5px;">'
+      + '<div><strong style="color:var(--gold2);">' + item.name + '</strong>' + (sub ? ' <span class="muted">(' + sub + ')</span>' : '')
+      + '<div class="muted" style="font-size:10px;">Lat ' + item.lat + ', Lon ' + item.lon + ' · UTC ' + tzStr + ' · ' + item.method + ' / ' + item.asr + '</div></div>'
+      + '<button type="button" class="btn-primary" style="padding:5px 10px;font-size:11px;flex-shrink:0;" onclick="applySearchedCity(' + idx + ')">Set</button>'
+      + '</div>';
+  }).join('');
+}
+
+function applySearchedCity(idx){
+  var list = window._lastCitySearchResults || [];
+  var item = list[idx];
+  if(!item) return;
+  state.lat = item.lat;
+  state.lon = item.lon;
+  state.tz = item.tz;
+  state.cityName = item.fullLabel || item.name;
+  if(item.method){ state.method = item.method; save('noor_method', state.method); }
+  if(item.asr){ state.asr = item.asr; save('noor_asr', state.asr); }
+  save('noor_lat', state.lat);
+  save('noor_lon', state.lon);
+  save('noor_tz', state.tz);
+  save('noor_city_name', state.cityName);
+  save('noor_loc_mode', 'preset');
+  updateCityFields();
+  var cmEl = $('calcMethod'); if(cmEl) cmEl.value = state.method;
+  var atEl = $('asrType'); if(atEl) atEl.value = state.asr;
+  resolveTimezoneForCoords(state.lat, state.lon, true);
+  refreshHome();
+  var box = $('citySearchResults'); if(box) box.innerHTML = '';
+  toast('Location set to ' + state.cityName);
+}
+
 var _revGeoLastKey = '';
 async function reverseGeocodeCity(lat, lon){
   var key = lat.toFixed(2) + ',' + lon.toFixed(2);
@@ -4872,6 +4977,14 @@ function renderSettingsTab(tab){
     var tm = state.tuneMins || {fajr:0,sunrise:0,dhuhr:0,asr:0,maghrib:0,isha:0};
     container.innerHTML = `<div class="card"><h3>Location &amp; Calculation Method</h3>
       <div class="row"><label>City preset</label><select id="cityPreset"></select></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;">
+        <label>Search any world city</label>
+        <div class="ctrl" style="flex:1;min-width:210px;justify-content:flex-end;">
+          <input type="text" id="citySearchInp" placeholder="e.g., Kurmalguda, Jeddah, Doha, Berlin..." style="flex:1;min-width:130px;background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.25);border-radius:6px;padding:6px 9px;font-size:12px;">
+          <button type="button" id="citySearchBtn" class="btn-chip">🔍 Search</button>
+        </div>
+      </div>
+      <div id="citySearchResults" style="display:flex;flex-direction:column;gap:5px;margin:6px 0;"></div>
       <div class="row"><label>Latitude</label><input type="number" id="latInput" step="0.0001"></div>
       <div class="row"><label>Longitude</label><input type="number" id="lonInput" step="0.0001"></div>
       <div class="row"><label>Timezone offset (hrs)</label><input type="number" id="tzInput" step="0.5"></div>
@@ -4879,6 +4992,7 @@ function renderSettingsTab(tab){
         <button id="gpsBtn" class="btn-primary">📍 Detect GPS</button>
         <button id="approxIpBtn" class="btn-chip">🌐 Approx. Network Location</button>
         <button id="syncDeviceTzBtn" class="btn-chip">🕒 Sync Device Timezone</button>
+        <button id="autoRegionPresetBtn" class="btn-chip">🧭 Auto-Preset Region Method &amp; Asr</button>
         <button id="gpsHelpBtn" class="btn-chip">❓ GPS Fix Guide</button>
       </div>
       <div class="muted" style="margin-top:8px;line-height:1.5;background:rgba(10,22,18,.45);padding:8px 10px;border-radius:8px;border:1px solid rgba(212,175,55,.15);">
@@ -5282,6 +5396,22 @@ function bindSettingsTabEvents(tab){
     var tz = $('tzInput'); if(tz){ tz.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.tz=v; save('noor_tz',v); refreshHome(); } }); }
     var gps = $('gpsBtn'); if(gps) gps.addEventListener('click', () => detectGPS({ silent: false }));
     var aip = $('approxIpBtn'); if(aip) aip.addEventListener('click', async () => { toast('Detecting approximate network location...'); var ok = await fallbackIPLocation(false); if(!ok) toast('Network location unavailable offline.'); });
+    var arpBtn = $('autoRegionPresetBtn'); if(arpBtn) arpBtn.addEventListener('click', () => {
+      var matchedCity = CITIES.find(function(x){ return x.name === state.cityName || (Math.abs(x.lat - state.lat) < 0.05 && Math.abs(x.lon - state.lon) < 0.05); });
+      var inf = matchedCity ? { method: matchedCity.method || 'MWL', asr: matchedCity.asr || 'Standard' } : inferRegionDefaults(state.lat, state.lon, state.cityName);
+      state.method = inf.method;
+      state.asr = inf.asr;
+      save('noor_method', state.method);
+      save('noor_asr', state.asr);
+      var cmEl = $('calcMethod'); if(cmEl) cmEl.value = state.method;
+      var atEl = $('asrType'); if(atEl) atEl.value = state.asr;
+      refreshHome();
+      toast('Applied regional preset: ' + state.method + ' · ' + state.asr);
+    });
+    var csBtn = $('citySearchBtn');
+    var csInp = $('citySearchInp');
+    if(csBtn){ csBtn.addEventListener('click', function(){ searchWorldCities(csInp ? csInp.value : ''); }); }
+    if(csInp){ csInp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); searchWorldCities(csInp.value); } }); }
     var ghb = $('gpsHelpBtn'); if(ghb) ghb.addEventListener('click', () => showGPSHelpModal('Manual troubleshooting guide'));
     var stz = $('syncDeviceTzBtn'); if(stz) stz.addEventListener('click', ()=>{
       state.tz = -(new Date().getTimezoneOffset()/60);
