@@ -818,9 +818,31 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
   line-height: 1.4;
 }
 
+
+.top-settings-btn {
+  background: var(--card2);
+  color: var(--gold2);
+  border: 1px solid rgba(212,175,55,.25);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: .2s;
+}
+.top-settings-btn:hover {
+  border-color: var(--gold);
+}
+.top-settings-btn.active {
+  background: var(--gold);
+  color: #1a1a1a;
+  border-color: var(--gold);
+}
 </style>
 
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Itminan&quot;,&quot;short_name&quot;:&quot;Itminan&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0b1a14&quot;,&quot;theme_color&quot;:&quot;#d4af37&quot;}">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Itminan%22%2C%22short_name%22%3A%22Itminan%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b1a14%22%2C%22theme_color%22%3A%22%23d4af37%22%7D">
 </head>
 <body>
 <div class="offline-badge" id="offlineBadge">Offline</div>
@@ -840,7 +862,10 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
       <div class="sub" id="appSub">Dua &amp; Surah Companion</div>
     </div>
   </div>
-  <select class="lang-select" id="langSelect" aria-label="Display language"></select>
+  <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+    <select class="lang-select" id="langSelect" aria-label="Display language"></select>
+    <button type="button" class="top-settings-btn" data-view="settings" aria-label="Settings" title="Settings">⚙️</button>
+  </div>
 </div>
 
 <!-- Nav -->
@@ -852,7 +877,6 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
   <button data-view="umrah">🕋 Umrah/Hajj</button>
   <button data-view="info">ℹ️ Information</button>
   <button data-view="askai">💬 Ask AI</button>
-  <button data-view="settings">⚙️ Settings</button>
 </div>
 
 <main>
@@ -3068,7 +3092,219 @@ const CATS = [
   {id:'night', label:'Night'},
   {id:'friday', label:'Friday'},
   {id:'relief', label:'Relief'},
+  {id:'issue_duas', label:'📌 By Issue (Chart)'},
+  {id:'weekly_chart', label:'📅 Weekly Chart'},
   {id:'daily', label:'Daily Sunnah'},
+];
+
+const WEEKLY_CHART_ADHKAR = [
+  {
+    id: 'wk_mon_1',
+    cat: 'weekly_chart',
+    issue: 'پیر — Monday (Day 1 of Weekly Chart)',
+    ar: 'أَسْتَغْفِرُ اللَّهَ',
+    translit: 'Astaghfirullah',
+    en: 'I seek forgiveness from Allah.',
+    ur: 'میں اللہ سے مغفرت طلب کرتا ہوں۔',
+    count: 700,
+    src: 'Authentic Istighfar phrase; Monday 700x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Seeking forgiveness regularly cleanses the heart and opens doors of mercy and relief.'
+  },
+  {
+    id: 'wk_tue_2',
+    cat: 'weekly_chart',
+    issue: 'منگل — Tuesday (Day 2 of Weekly Chart)',
+    ar: 'سُبْحَانَ اللَّهِ',
+    translit: 'Subhanallah',
+    en: 'Glory be to Allah.',
+    ur: 'اللہ پاک ہے۔',
+    count: 300,
+    src: 'Authentic Tasbih phrase; Tuesday 300x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Exalting Allah above all imperfection is a foundational pillar of remembrance (Dhikr).'
+  },
+  {
+    id: 'wk_wed_3',
+    cat: 'weekly_chart',
+    issue: 'بدھ — Wednesday (Day 3 of Weekly Chart)',
+    ar: 'الْحَمْدُ لِلَّهِ',
+    translit: 'Alhamdulillah',
+    en: 'All praise is due to Allah.',
+    ur: 'سب تعریف اللہ کے لیے ہے۔',
+    count: 200,
+    src: 'Authentic Tahmid phrase; Wednesday 200x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Praising and thanking Allah cultivates gratitude and contentment in all circumstances.'
+  },
+  {
+    id: 'wk_thu_4',
+    cat: 'weekly_chart',
+    issue: 'جمعرات — Thursday (Day 4 of Weekly Chart)',
+    ar: 'اللَّهُ أَكْبَرُ',
+    translit: 'Allahu Akbar',
+    en: 'Allah is the Greatest.',
+    ur: 'اللہ سب سے بڑا ہے۔',
+    count: 400,
+    src: 'Authentic Takbir phrase; Thursday 400x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Affirming Allah’s supreme greatness puts every worldly worry in perspective.'
+  },
+  {
+    id: 'wk_fri_5',
+    cat: 'weekly_chart',
+    issue: 'جمعہ — Friday / Jumu`ah (Day 5 of Weekly Chart)',
+    ar: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ',
+    translit: 'Allahumma salli `ala Muhammad',
+    en: 'O Allah, send prayers and blessings upon Muhammad.',
+    ur: 'اے اللہ! محمد ﷺ پر رحمت اور برکت نازل فرما۔',
+    count: 1000,
+    src: 'Sending Salawat on Friday is encouraged in the Sunnah (e.g., Sunan Abi Dawud 1047); 1,000x is a devotional chart target',
+    virtue: 'Sending abundant Salawat on the Prophet ﷺ on Friday is a beloved act of devotion and love.'
+  },
+  {
+    id: 'wk_sat_6',
+    cat: 'weekly_chart',
+    issue: 'ہفتہ — Saturday (Day 6 of Weekly Chart)',
+    ar: 'لَا إِلٰهَ إِلَّا اللَّهُ',
+    translit: 'La ilaha illallah',
+    en: 'There is no deity worthy of worship except Allah.',
+    ur: 'اللہ کے سوا کوئی معبود نہیں۔',
+    count: 300,
+    src: 'Authentic Tahlil phrase; Saturday 300x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Renewing the declaration of Tawhid (La ilaha illallah) strengthens faith and inner peace.'
+  },
+  {
+    id: 'wk_sun_7',
+    cat: 'weekly_chart',
+    issue: 'اتوار — Sunday (Day 7 of Weekly Chart)',
+    ar: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
+    translit: 'La hawla wa la quwwata illa billah',
+    en: 'There is no power and no strength except with Allah.',
+    ur: 'نہ کوئی طاقت ہے اور نہ کوئی قوت مگر اللہ کی مدد سے۔',
+    count: 100,
+    src: 'Sahih al-Bukhari 6384 / Sahih Muslim 2704; Sunday 100x quota comes from a popular devotional chart (not fixed by a Sahih Hadith)',
+    virtue: 'Acknowledging that all ability and strength come from Allah brings humility and reliance on Him.'
+  }
+];
+
+const ISSUE_SUPPLICATIONS = [
+  {
+    id: 'iss_1',
+    cat: 'issue_duas',
+    issue: 'دل کی گھبراہٹ — Heart Anxiety & Restlessness',
+    ar: 'حَسْبِيَ اللَّهُ',
+    translit: 'Hasbiya Allah',
+    en: 'Allah is sufficient for me.',
+    ur: 'اللہ میرے لیے کافی ہے۔',
+    count: 41,
+    src: 'Qur\'an 9:129 / 39:38 (Devotional count note: 41x is a popular devotional practice, not fixed by a Sahih Hadith)',
+    virtue: 'Recite with trust in Allah during moments of restlessness or heart anxiety.'
+  },
+  {
+    id: 'iss_2',
+    cat: 'issue_duas',
+    issue: 'اللہ سے مدد — Seeking Help from Allah',
+    ar: 'يَا حَيُّ يَا قَيُّومُ',
+    translit: 'Ya Hayyu Ya Qayyum',
+    en: 'O Ever-Living, O Sustainer of all existence.',
+    ur: 'اے ہمیشہ زندہ رہنے والے، اے ہر چیز کو قائم رکھنے والے۔',
+    count: 100,
+    src: 'Jami` at-Tirmidhi 3524 (Devotional count note: 100x is a devotional count)',
+    virtue: 'Call upon Allah by His attributes of eternal life and self-subsisting sustenance when seeking help.'
+  },
+  {
+    id: 'iss_3',
+    cat: 'issue_duas',
+    issue: 'رزق میں آسانی — Ease in Sustenance / Provision',
+    ar: 'يَا رَزَّاقُ',
+    translit: 'Ya Razzaq',
+    en: 'O Provider / Sustainer.',
+    ur: 'اے رزق دینے والے۔',
+    count: 308,
+    src: 'Al-Asma ul-Husna (Devotional count note: 308x is a devotional practice, not fixed by a Sahih Hadith)',
+    virtue: 'Seek halal sustenance and ease in livelihood from Ar-Razzaq.'
+  },
+  {
+    id: 'iss_4',
+    cat: 'issue_duas',
+    issue: 'گھر میں سکون — Peace & Tranquility at Home',
+    ar: 'رَبِّ اغْفِرْ لِي',
+    translit: 'Rabbighfir li',
+    en: 'My Lord, forgive me.',
+    ur: 'اے میرے رب، مجھے معاف فرما۔',
+    count: 70,
+    src: 'Qur\'an 71:28; Sunan Abi Dawud 874 (Devotional count note: 70x is a devotional count)',
+    virtue: 'Seeking forgiveness brings mercy, barakah, and tranquility into the household.'
+  },
+  {
+    id: 'iss_5',
+    cat: 'issue_duas',
+    issue: 'پریشانی اور فکر — Worry & Distress',
+    ar: 'رَبِّ إِنِّي لِمَا أَنْزَلْتَ إِلَيَّ مِنْ خَيْرٍ فَقِيرٌ',
+    translit: 'Rabbi inni lima anzalta ilayya min khayrin faqir',
+    en: 'My Lord, indeed I am, for whatever good You would send down to me, in need.',
+    ur: 'اے میرے رب! بے شک میں اس بھلائی کا محتاج ہوں جو تو میری طرف نازل فرمائے۔',
+    count: 21,
+    src: 'Qur\'an 28:24 (Devotional count note: 21x is a devotional count)',
+    virtue: 'Prophetic/Qur\'anic supplication of Musa (AS) when in need of sustenance, shelter, and good.'
+  },
+  {
+    id: 'iss_6',
+    cat: 'issue_duas',
+    issue: 'محبت اور الفت — Love & Affection',
+    ar: 'يَا وَدُودُ',
+    translit: 'Ya Wadud',
+    en: 'O Most Loving.',
+    ur: 'اے بے حد محبت کرنے والے۔',
+    count: 111,
+    src: 'Qur\'an 85:14 / 11:90 (Devotional count note: 111x is a devotional practice, not fixed by a Sahih Hadith)',
+    virtue: 'Remembering Al-Wadud fosters affection, mercy, and harmony among family and believers.'
+  },
+  {
+    id: 'iss_7',
+    cat: 'issue_duas',
+    issue: 'علم میں برکت — Blessing in Knowledge',
+    ar: 'رَبِّ زِدْنِي عِلْمًا',
+    translit: 'Rabbi zidni `ilma',
+    en: 'My Lord, increase me in knowledge.',
+    ur: 'اے میرے رب! میرے علم میں اضافہ فرما۔',
+    count: 100,
+    src: 'Qur\'an 20:114 (Devotional count note: 100x is a devotional count)',
+    virtue: 'Qur\'anic supplication asking Allah for beneficial knowledge and clarity.'
+  },
+  {
+    id: 'iss_8',
+    cat: 'issue_duas',
+    issue: 'بری چیزوں سے حفاظت — Protection from Harmful Things',
+    ar: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
+    translit: 'A`udhu bi-kalimati Allahi at-tammati min sharri ma khalaq',
+    en: 'I seek refuge in the perfect words of Allah from the evil of what He has created.',
+    ur: 'میں اللہ کے کامل کلمات کی پناہ مانگتا ہوں ہر اس چیز کے شر سے جو اس نے پیدا کی۔',
+    count: 33,
+    src: 'Sahih Muslim 2708 (Devotional count note: 33x is a devotional count)',
+    virtue: 'Authentic protection supplication against harm in any place or situation.'
+  },
+  {
+    id: 'iss_9',
+    cat: 'issue_duas',
+    issue: 'مشکل وقت — Difficult Times & Hardship',
+    ar: 'لَا إِلٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
+    translit: 'La ilaha illa anta subhanaka inni kuntu minaz-zalimin',
+    en: 'There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers.',
+    ur: 'تیرے سوا کوئی معبود نہیں، تو پاک ہے، بے شک میں ہی ظالموں میں سے تھا۔',
+    count: 40,
+    src: 'Qur\'an 21:87; Jami` at-Tirmidhi 3505 (Devotional count note: 40x is a devotional count)',
+    virtue: 'Supplication of Yunus (AS) in distress; no Muslim calls upon Allah with it in distress except that Allah responds.'
+  },
+  {
+    id: 'iss_10',
+    cat: 'issue_duas',
+    issue: 'ہر جائز حاجت — Every Permissible Need',
+    ar: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+    translit: 'Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina `adhaban-nar',
+    en: 'Our Lord, give us in this world [that which is] good and in the Hereafter [that which is] good and protect us from the punishment of the Fire.',
+    ur: 'اے ہمارے رب! ہمیں دنیا میں بھی بھلائی عطا فرما اور آخرت میں بھی بھلائی عطا فرما اور ہمیں دوزخ کے عذاب سے بچا۔',
+    count: 7,
+    src: 'Qur\'an 2:201; Sahih al-Bukhari 6389 (Devotional count note: 7x is shown at the bottom of the chart)',
+    virtue: "Comprehensive Qur'anic supplication encompassing good in both this life and the Hereafter."
+  }
 ];
 var currentCat = 'morning';
 function renderCatTabs(){
@@ -3246,8 +3482,9 @@ async function renderDuas(){
 }
 async function renderAdhkar(filter=''){
   await loadAdhkar();
-  var list = adhkarData.adhkar.filter(d=>d.cat===currentCat);
-  if(filter) list = list.filter(d=> (d.en+d.ar+d.translit).toLowerCase().includes(filter.toLowerCase()));
+  var sourceItems = (currentCat === 'issue_duas') ? ISSUE_SUPPLICATIONS : ((currentCat === 'weekly_chart') ? WEEKLY_CHART_ADHKAR : adhkarData.adhkar);
+  var list = sourceItems.filter(d=>d.cat===currentCat);
+  if(filter) list = list.filter(d=> ((d.issue||'')+d.en+d.ar+d.translit+(d.ur||'')).toLowerCase().includes(filter.toLowerCase()));
   var html='';
   list.forEach(d=>{
     var cnt = (state.goals['dhikr_'+d.id] || 0);
@@ -3267,6 +3504,7 @@ async function renderAdhkar(filter=''){
     }
     var safeEn = (d.en || '').replace(/"/g, '&quot;');
     html += `<div class="dhikr">
+      ${d.issue ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(212,175,55,.14);"><span class="badge gold">Issue: ${d.issue}</span><span class="muted">Target: ${goal}x</span></div>` : ''}
       <div class="ar">${d.ar}</div>
       <div class="translit" style="font-style:italic;color:var(--muted);font-size:12px;margin-bottom:4px;">${d.translit}</div>
       ${d.en?`<div class="tr">${d.en}</div>`:''}
@@ -3278,13 +3516,16 @@ async function renderAdhkar(filter=''){
         <button class="counter-btn" data-id="${d.id}" title="Increment counter">+</button>
         <div class="count-display" id="cnt_${d.id}">${cnt}</div>
         <div class="goal">/ ${goal}</div>
-        <button class="btn-chip counter-reset-btn" data-id="${d.id}" title="Reset counter" style="padding:3px 7px;font-size:10px;">↺</button>
+        <button class="btn-chip counter-reset-btn" data-id="${d.id}" title="Reset counter" style="padding:4px 9px;font-size:11px;">↺ Reset</button>
         ${ttsAllBtns(d.ar, d.en, d.ur)}
       </div>
       <div class="progress"><div style="width:${pct}%"></div></div>
     </div>`;
   });
-  $('adhkarList').innerHTML = html;
+  var chartNote = (currentCat === 'weekly_chart')
+    ? `<div class="section-card" style="margin-bottom:10px;border-left:3px solid var(--gold);"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><div style="font-size:12px;font-weight:700;color:var(--gold2);">📅 Weekly Dhikr Chart (Day-by-Day Counters)</div><button type="button" class="btn-chip" id="resetWeeklyChartBtn" onclick="resetAllWeeklyChartCounters()" style="padding:4px 10px;font-size:11px;">↺ Reset All 7</button></div><div class="muted" style="line-height:1.45;">All seven Arabic phrases are authentic remembrances. While sending Salawat on Friday is encouraged in the Sunnah, assigning specific repetition counts (700x, 300x, 200x, 400x, 1000x, 300x, 100x) to particular days comes from a popular devotional chart rather than a fixed Sahih Hadith quota.</div></div>`
+    : '';
+  $('adhkarList').innerHTML = chartNote + html;
   if(['kn','te','fr','dz','ber','da'].indexOf(state.trLang) !== -1) hydrateLiveTranslations(state.trLang);
 }
 
@@ -3295,7 +3536,8 @@ function incrementDhikrCounter(id, cardEl){
   save('noor_goals', JSON.stringify(state.goals));
   var el = $('cnt_'+id);
   if(el) el.textContent = state.goals[key];
-  var d = (adhkarData && adhkarData.adhkar) ? adhkarData.adhkar.find(function(x){ return String(x.id)===String(id); }) : null;
+  var allPool = ((adhkarData && adhkarData.adhkar) ? adhkarData.adhkar : []).concat(typeof ISSUE_SUPPLICATIONS !== 'undefined' ? ISSUE_SUPPLICATIONS : []).concat(typeof WEEKLY_CHART_ADHKAR !== 'undefined' ? WEEKLY_CHART_ADHKAR : []);
+  var d = allPool.find(function(x){ return String(x.id)===String(id); }) || null;
   var goal = (d && d.count) ? d.count : 1;
   var pct = Math.min(100, Math.round(state.goals[key]/goal*100));
   var card = cardEl || (el ? el.closest('.dhikr') : null);
@@ -3319,6 +3561,23 @@ function resetDhikrCounter(id, cardEl){
   var bar = card ? card.querySelector('.progress > div') : null;
   if(bar) bar.style.width = '0%';
 }
+
+function resetAllWeeklyChartCounters(){
+  if(typeof WEEKLY_CHART_ADHKAR === 'undefined' || !Array.isArray(WEEKLY_CHART_ADHKAR)) return;
+  WEEKLY_CHART_ADHKAR.forEach(function(item){
+    if(!item || !item.id) return;
+    var key = 'dhikr_'+item.id;
+    state.goals[key] = 0;
+    var el = $('cnt_'+item.id);
+    if(el) el.textContent = 0;
+    var card = el ? el.closest('.dhikr') : null;
+    var bar = card ? card.querySelector('.progress > div') : null;
+    if(bar) bar.style.width = '0%';
+  });
+  save('noor_goals', JSON.stringify(state.goals));
+  if(typeof toast === 'function') toast('All 7 Weekly Chart counters reset');
+}
+window.resetAllWeeklyChartCounters = resetAllWeeklyChartCounters;
 
 if(!window._autoCounterDelegated){
   window._autoCounterDelegated = true;
