@@ -622,6 +622,8 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
 /* ===== Home Round Clock & Info Banner ===== */
 .home-hero {
   display: flex;
+  flex-direction: row;
+  direction: ltr;
   align-items: center;
   gap: 16px;
   padding: 12px 14px;
@@ -1092,8 +1094,13 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
 
       <div class="ai-messages" id="aiMessages"></div>
 
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+        <span class="muted" id="aiVoiceStatus" style="font-size:11px;">🎙️ Tap Mic to speak your Islamic question</span>
+        <button type="button" class="btn-chip" id="aiAutoSpeakBtn" title="Automatically read AI replies aloud">🔊 Voice Reply: OFF</button>
+      </div>
       <div class="ai-input-row">
-        <input type="text" id="aiQuestionInput" placeholder="Ask an authentic Islamic question only (Qur'an, Hadith, Salah, Wudu, Fasting, Umrah)...">
+        <button type="button" class="btn-secondary" id="aiMicBtn" title="Voice input (Speech-to-Text)" style="padding:10px 12px;border-color:rgba(212,175,55,.35);">🎙️</button>
+        <input type="text" id="aiQuestionInput" placeholder="Speak or type an Islamic question (Qur'an, Hadith, Salah, Wudu, Fasting, Umrah)...">
         <button class="btn-primary" id="aiSendBtn">Send ➤</button>
       </div>
 
@@ -1359,7 +1366,9 @@ function t(key){ return (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[k
 const state = {
   lang: localStorage.getItem('noor_lang') || 'en',
   view: 'home',
-  city: JSON.parse(localStorage.getItem('noor_city') || 'null') || CITIES[0],
+  city: JSON.parse(localStorage.getItem('noor_city') || 'null') || null,
+  cityName: localStorage.getItem('noor_city_name') || '',
+  autoWatchLoc: localStorage.getItem('noor_auto_watch_loc') !== '0',
   method: localStorage.getItem('noor_method') || 'Karachi',
   asr: localStorage.getItem('noor_asr') || 'Hanafi',
   lat: localStorage.getItem('noor_lat') !== null ? parseFloat(localStorage.getItem('noor_lat')) : CITIES[0].lat,
@@ -1542,27 +1551,31 @@ function updateHomeClock(){
   var m = now.getMinutes() + s/60;
   var h = (now.getHours() % 12) + m/60;
   var hh = $('clockHourHand'), mh = $('clockMinHand'), sh = $('clockSecHand');
-  if(hh) hh.setAttribute('transform', 'rotate(' + (h * 30).toFixed(2) + ' 50 50)');
-  if(mh) mh.setAttribute('transform', 'rotate(' + (m * 6).toFixed(2) + ' 50 50)');
-  if(sh) sh.setAttribute('transform', 'rotate(' + (s * 6).toFixed(2) + ' 50 50)');
+  var hTr = 'rotate(' + (h * 30).toFixed(2) + ' 50 50)';
+  var mTr = 'rotate(' + (m * 6).toFixed(2) + ' 50 50)';
+  var sTr = 'rotate(' + (s * 6).toFixed(2) + ' 50 50)';
+  if(hh && hh.getAttribute('transform') !== hTr) hh.setAttribute('transform', hTr);
+  if(mh && mh.getAttribute('transform') !== mTr) mh.setAttribute('transform', mTr);
+  if(sh && sh.getAttribute('transform') !== sTr) sh.setAttribute('transform', sTr);
   var dt = $('homeDigitalTime');
-  if(dt) dt.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  var dtStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  if(dt && dt.textContent !== dtStr) dt.textContent = dtStr;
   var gd = $('homeGregDate');
-  if(gd) gd.textContent = now.toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  var gdStr = now.toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  if(gd && gd.textContent !== gdStr) gd.textContent = gdStr;
   var hr = $('homeHijriRow');
   if(hr){
     var hDate = new Date(now.getTime() + (state.hijriOffset || 0) * 86400000);
     var hHtml = '<span class="badge gold">🌙 ' + hijriDate(hDate) + '</span>';
     if(typeof isAyyamAlBid === 'function' && isAyyamAlBid(hDate)) hHtml += '<span class="badge green">Ayyam al-Bid</span>';
     if(typeof dayTheme === 'function') hHtml += '<span class="badge gold">' + dayTheme(now) + '</span>';
-    hr.innerHTML = hHtml;
+    if(hr.innerHTML !== hHtml) hr.innerHTML = hHtml;
   }
   var lt = $('homeLocText');
   if(lt){
-    var cityName = 'Custom location';
-    var found = CITIES.find(function(c){ return Math.abs(c.lat - state.lat) < 0.5 && Math.abs(c.lon - state.lon) < 0.5; });
-    if(found) cityName = found.name;
-    lt.textContent = '📍 ' + cityName + ' (' + state.lat.toFixed(3) + ', ' + state.lon.toFixed(3) + ')';
+    var cityName = getResolvedCityName();
+    var ltStr = '📍 ' + cityName + ' (' + state.lat.toFixed(3) + ', ' + state.lon.toFixed(3) + ')';
+    if(lt.textContent !== ltStr) lt.textContent = ltStr;
   }
 }
 
@@ -1643,15 +1656,92 @@ function dayTheme(date){
 function recommendations(now, times){
   var h = now.getHours()+now.getMinutes()/60;
   var recs = [];
-  if(dayTheme(now).startsWith('Friday')) recs.push({title:'Surah Al-Kahf', note:'Read on Friday for light'});
-  if(isAyyamAlBid(now)) recs.push({title:'Ayyam al-Bid (White Days)', note:'Fasting recommended'});
-  if(h < times.fajr) recs.push({title:'Tahajjud & Istighfar', note:'Last third of night'});
-  else if(h < times.sunrise) recs.push({title:'Morning Adhkar', note:'After Fajr'});
-  else if(h < times.dhuhr) recs.push({title:'Duha prayer & Adhkar', note:'Mid-morning'});
-  else if(h < times.asr) recs.push({title:'Ayatul Kursi', note:'After Dhuhr'});
-  else if(h < times.maghrib) recs.push({title:'Evening Adhkar', note:'Before Maghrib'});
-  else if(h < times.isha) recs.push({title:'Surah Al-Mulk', note:'Night recitation'});
-  else recs.push({title:'Sleep Adhkar & Ayatul Kursi', note:'Before sleep'});
+  if(dayTheme(now).startsWith('Friday')){
+    recs.push({
+      title:'Surah Al-Kahf (18)',
+      note:'Read on Friday for light between two Fridays',
+      surahNum: 18,
+      ar:'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ الْحَمْدُ لِلَّهِ الَّذِي أَنْزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَلْ لَهُ عِوَجًا',
+      en:'All praise is due to Allah, Who has sent down upon His Servant the Book and has not made therein any deviance.',
+      ur:'سب تعریفیں اللہ ہی کے لیے ہیں جس نے اپنے بندے پر یہ کتاب نازل کی اور اس میں کوئی کجی نہیں رکھی۔'
+    });
+  }
+  if(isAyyamAlBid(now)){
+    recs.push({
+      title:'Ayyam al-Bid (White Days Fast)',
+      note:'Sunnah fasting on the 13th, 14th & 15th of the lunar month',
+      navView:'fasting',
+      ar:'اللَّهُمَّ إِنِّي لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ',
+      en:'O Allah, for You I have fasted, in You I believe, upon You I rely, and with Your provision I break my fast.',
+      ur:'اے اللہ! میں نے تیرے لیے روزہ رکھا، تجھ پر ایمان لایا، تجھ پر بھروسا کیا اور تیرے رزق سے افطار کیا۔'
+    });
+  }
+  if(h < times.fajr){
+    recs.push({
+      title:'Tahajjud & Sayyidul Istighfar',
+      note:'Last third of the night — Allah descends and answers supplications',
+      adhkarCat:'night',
+      ar:'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَٰهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ',
+      en:'O Allah, You are my Lord, none has the right to be worshipped except You. You created me and I am Your servant... forgive me, for none forgives sins except You.',
+      ur:'اے اللہ! تو میرا رب ہے، تیرے سوا کوئی معبود نہیں، تو نے مجھے پیدا کیا اور میں تیرا بندہ ہوں... پس مجھے بخش دے کہ تیرے سوا کوئی گناہ معاف نہیں کر سکتا۔'
+    });
+  } else if(h < times.sunrise){
+    recs.push({
+      title:'Morning Adhkar (After Fajr)',
+      note:'Morning remembrance for protection and blessing throughout the day',
+      adhkarCat:'morning',
+      ar:'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ',
+      en:'We have entered the morning and the dominion belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah alone without partner.',
+      ur:'ہم نے صبح کی اور بادشاہی اللہ کی ہو گئی، اور تمام تعریف اللہ کے لیے ہے، اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے اس کا کوئی شریک نہیں۔'
+    });
+  } else if(h < times.dhuhr){
+    recs.push({
+      title:'Duha Prayer & Glorification',
+      note:'Mid-morning voluntary prayer & tasbih charity for every joint',
+      navView:'ibaadat',
+      ar:'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ، أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ',
+      en:'Glory and praise be to Allah, Glory be to Allah the Supreme; I seek the forgiveness of Allah and repent to Him.',
+      ur:'پاک ہے اللہ اپنی تعریف کے ساتھ، پاک ہے اللہ عظمت والا، میں اللہ سے بخشش مانگتا ہوں اور اس کی طرف توبہ کرتا ہوں۔'
+    });
+  } else if(h < times.asr){
+    recs.push({
+      title:'Ayatul Kursi (2:255) & After-Dhuhr Dhikr',
+      note:'Recite after obligatory prayers for divine protection',
+      surahNum: 2,
+      ayahNum: 255,
+      ar:'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ',
+      en:'Allah — there is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep.',
+      ur:'اللہ کے سوا کوئی معبود نہیں، وہ زندہ ہے اور سب کو تھامنے والا ہے، اسے نہ اونگھ آتی ہے نہ نیند۔'
+    });
+  } else if(h < times.maghrib){
+    recs.push({
+      title:'Evening Adhkar (Before Maghrib)',
+      note:'Evening remembrance and seeking refuge before sunset',
+      adhkarCat:'evening',
+      ar:'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
+      en:'We have entered the evening and the dominion belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah alone.',
+      ur:'ہم نے شام کی اور بادشاہی اللہ کی ہو گئی، اور تمام تعریف اللہ کے لیے ہے، اللہ کے سوا کوئی معبود نہیں وہ اکیلا ہے۔'
+    });
+  } else if(h < times.isha){
+    recs.push({
+      title:'Surah Al-Mulk (67) — Night Recitation',
+      note:'Intercedes for its reciter and protects from the punishment of the grave',
+      surahNum: 67,
+      ar:'تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ',
+      en:'Blessed is He in whose hand is dominion, and He is over all things competent.',
+      ur:'بڑی برکت والا ہے وہ جس کے ہاتھ میں بادشاہی ہے اور وہ ہر چیز پر قادر ہے۔'
+    });
+  } else {
+    recs.push({
+      title:'Sleep Adhkar & Surah Al-Mulk (67)',
+      note:'Recite before sleeping for peaceful rest and protection',
+      adhkarCat:'sleep',
+      surahNum: 67,
+      ar:'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا',
+      en:'In Your name, O Allah, I die and I live.',
+      ur:'اے اللہ! تیرے ہی نام کے ساتھ میں مرتا ہوں (سوتا ہوں) اور زندہ ہوتا ہوں۔'
+    });
+  }
   return recs;
 }
 
@@ -2119,7 +2209,7 @@ function isSkippableNode(node){
   var el = node.parentElement;
   var tag = el.tagName;
   if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'TEXTAREA' || tag === 'INPUT') return true;
-  if(el.closest('.ar, .amiri, .ur-tr, #bannerAr, #logo, #langSelect, #setLang, #trLang, #adLangSel, #reciterSelect, #setReciter, #offlineBadge, .toast')) return true;
+  if(el.closest('.ar, .amiri, .ur-tr, #bannerAr, #logo, #homeHero, #homeDigitalTime, #homeGregDate, #homeHijriRow, #homeLocText, #langSelect, #setLang, #trLang, #adLangSel, #reciterSelect, #setReciter, #offlineBadge, .toast')) return true;
   return false;
 }
 function shouldTranslateText(s){
@@ -2266,11 +2356,20 @@ function scheduleDOMTranslate(){
   _domTrTimer = setTimeout(function(){ translatePageDOM(state.lang); }, 120);
 }
 if(typeof MutationObserver !== 'undefined'){
-  var _domObserver = new MutationObserver(function(){
+  var _domObserver = new MutationObserver(function(mutations){
     if(_domTrBusy || state.lang === 'en') return;
-    scheduleDOMTranslate();
+    var hasRelevantChange = false;
+    for(var i = 0; i < mutations.length; i++){
+      var tgt = mutations[i].target;
+      var el = (tgt && tgt.nodeType === 1) ? tgt : (tgt && tgt.parentElement);
+      if(!el || !el.closest('#homeHero, #homeDigitalTime, #homeGregDate, #homeHijriRow, #homeLocText')){
+        hasRelevantChange = true;
+        break;
+      }
+    }
+    if(hasRelevantChange) scheduleDOMTranslate();
   });
-  _domObserver.observe(document.body, { childList: true, subtree: true });
+  _domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 }
 
 function applyLang(){
@@ -2320,11 +2419,11 @@ function renderPW(){
   for(var i=0;i<items.length;i++){ if(h >= items[i].t) activeIdx=i; else break; }
   var pws = document.querySelectorAll('#pwGrid .pw');
   pws.forEach((el,i)=>{ el.classList.toggle('active', i===activeIdx); });
-  var cFound = CITIES.find(c=>Math.abs(c.lat-state.lat)<0.5 && Math.abs(c.lon-state.lon)<0.5);
-  var cLabel = cFound ? cFound.name : 'Custom Location';
+  var cLabel = getResolvedCityName();
   var tzStr = 'UTC' + (state.tz >= 0 ? '+' + state.tz : state.tz);
   $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> 
-  (${state.lat.toFixed(3)}, 
+  (
+  ${state.lat.toFixed(3)}, 
   ${state.lon.toFixed(3)} · 
   ${tzStr}) • 
   
@@ -2337,9 +2436,7 @@ function renderToday(){
   html += `<div style="margin-top:6px;"><span class="badge gold">${hijriDate(now)}</span> `;
   if(isAyyamAlBid(now)) html += `<span class="badge green">Ayyam al-Bid (White Days)</span> `;
   html += `<span class="badge gold">${dayTheme(now)}</span></div>`;
-  var cityName = 'Custom location';
-  var found = CITIES.find(c=>Math.abs(c.lat-state.lat)<0.5 && Math.abs(c.lon-state.lon)<0.5);
-  if(found) cityName = found.name;
+  var cityName = getResolvedCityName();
   html += `<div style="margin-top:6px;font-size:11px;color:var(--muted);">Location: ${state.lat.toFixed(4)}, ${state.lon.toFixed(4)} (${cityName}) <button style="padding:2px 8px;border-radius:6px;background:var(--card2);font-size:10px;margin-left:6px;" onclick="detectGPS()">Detect GPS</button></div>`;
   $('todayInfo').innerHTML = html;
 }
@@ -2347,13 +2444,43 @@ function renderToday(){
 function renderRecs(){
   var times = computePrayerTimes(new Date());
   var recs = recommendations(new Date(), times);
-  var html = recs.map(r=>`<div style="padding:6px 0;"><strong style="color:var(--gold2);">${r.title}</strong><div class="muted">${r.note}</div></div>`).join('');
-  // Ayatul Kursi quick play
-  html += `<div style="margin-top:8px;padding:8px;background:var(--card2);border-radius:8px;">
-    <div style="color:var(--gold2);font-size:12px;font-weight:600;margin-bottom:4px;">Ayatul Kursi (2:255)</div>
-    <div style="display:flex;gap:6px;">
-      <button style="padding:4px 10px;border-radius:6px;background:var(--card);font-size:11px;" onclick="playAyahNumber(2,255)">▶ Arabic</button>
-      <button style="padding:4px 10px;border-radius:6px;background:var(--card);font-size:11px;" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=quran]'); if(s) s.click(); setTimeout(()=>openSurah(2),200);},100);">Open</button>
+  var html = recs.map(function(r){
+    var playBtns = '';
+    if(r.surahNum && r.ayahNum){
+      playBtns += `<button class="btn-chip" onclick="playAyahNumber(${r.surahNum},${r.ayahNum})">▶ Recite</button>`;
+    } else if(r.surahNum){
+      playBtns += `<button class="btn-chip" onclick="playSurahAudio(${r.surahNum})">▶ Recite Surah</button>`;
+    }
+    playBtns += ttsAllBtns(r.ar, r.en, r.ur);
+    var openBtn = '';
+    if(r.surahNum){
+      openBtn = `<button class="btn-chip" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=quran]'); if(s) s.click(); setTimeout(()=>openSurah(${r.surahNum}),180);},80);">📖 Open</button>`;
+    } else if(r.adhkarCat){
+      openBtn = `<button class="btn-chip" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=adhkar]'); if(s) s.click(); setTimeout(()=>{var c=document.querySelector('#catTabs button[data-cat=${r.adhkarCat}]'); if(c) c.click();},120);},80);">📖 Open Adhkar</button>`;
+    } else if(r.navView){
+      openBtn = `<button class="btn-chip" onclick="switchView('${r.navView}')">📖 Open</button>`;
+    }
+    return `<div style="margin-bottom:8px;padding:10px;background:var(--card2);border-radius:10px;border:1px solid rgba(212,175,55,.16);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+        <strong style="color:var(--gold2);font-size:13px;">${r.title}</strong>
+        ${openBtn}
+      </div>
+      <div class="muted" style="margin-bottom:6px;">${r.note}</div>
+      ${r.ar ? `<div class="ar" style="font-size:18px;text-align:right;direction:rtl;color:var(--gold2);margin-bottom:4px;">${r.ar}</div>` : ''}
+      ${r.en ? `<div class="tr" style="font-size:12px;margin-bottom:6px;">${r.en}</div>` : ''}
+      <div class="audio-actions">${playBtns}</div>
+    </div>`;
+  }).join('');
+  // Always keep Ayatul Kursi quick play card accessible
+  html += `<div style="margin-top:8px;padding:10px;background:var(--card2);border-radius:10px;border:1px solid rgba(212,175,55,.16);">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+      <strong style="color:var(--gold2);font-size:13px;">Ayatul Kursi (2:255)</strong>
+      <button class="btn-chip" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=quran]'); if(s) s.click(); setTimeout(()=>openSurah(2),200);},100);">📖 Open</button>
+    </div>
+    <div class="muted" style="margin-bottom:6px;">Greatest verse in the Qur'an — protection after every Salah &amp; before sleep</div>
+    <div class="audio-actions">
+      <button class="btn-chip" onclick="playAyahNumber(2,255)">▶ Recite Ayah</button>
+      ${ttsAllBtns('اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ', 'Allah — there is no deity except Him, the Ever-Living, the Sustainer of existence.', 'اللہ کے سوا کوئی معبود نہیں، وہ زندہ ہے اور سب کو تھامنے والا ہے۔')}
     </div>
   </div>`;
   var el = $('recNow'); if(el) el.innerHTML = html;
@@ -3394,11 +3521,81 @@ async function fallbackIPLocation(silent){
   return false;
 }
 
+function getResolvedCityName(){
+  if(state.cityName && state.cityName.trim()) return state.cityName.trim();
+  var exact = CITIES.find(function(c){ return Math.abs(c.lat - state.lat) < 0.35 && Math.abs(c.lon - state.lon) < 0.35; });
+  if(exact) return exact.name;
+  // Find nearest known city if within 120 km
+  var best = null, bestKm = 120;
+  for(var i = 0; i < CITIES.length; i++){
+    var dKm = haversine(state.lat, state.lon, CITIES[i].lat, CITIES[i].lon);
+    if(dKm < bestKm){ bestKm = dKm; best = CITIES[i]; }
+  }
+  if(best) return 'Near ' + best.name;
+  return 'Current Location';
+}
+
+var _revGeoLastKey = '';
+async function reverseGeocodeCity(lat, lon){
+  var key = lat.toFixed(2) + ',' + lon.toFixed(2);
+  if(_revGeoLastKey === key && state.cityName) return state.cityName;
+  _revGeoLastKey = key;
+  if(!navigator.onLine) return '';
+  var endpoints = [
+    {
+      url: 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&localityLanguage=en',
+      parse: function(d){
+        if(!d) return '';
+        var parts = [];
+        if(d.city || d.locality) parts.push(d.city || d.locality);
+        if(d.principalSubdivision && parts.indexOf(d.principalSubdivision) === -1) parts.push(d.principalSubdivision);
+        else if(d.countryName && parts.length === 0) parts.push(d.countryName);
+        return parts.join(', ');
+      }
+    },
+    {
+      url: 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon),
+      parse: function(d){
+        if(!d || !d.address) return '';
+        var a = d.address;
+        var city = a.city || a.town || a.village || a.suburb || a.county || '';
+        var st = a.state || a.country || '';
+        return [city, st].filter(Boolean).join(', ');
+      }
+    }
+  ];
+  for(var i = 0; i < endpoints.length; i++){
+    try {
+      var res = await fetch(endpoints[i].url, { cache: 'no-store' });
+      if(!res.ok) continue;
+      var data = await res.json();
+      var name = (endpoints[i].parse(data) || '').trim();
+      if(name){
+        state.cityName = name;
+        save('noor_city_name', name);
+        updateHomeClock();
+        var activeHome = document.querySelector('.home-side.active');
+        if(activeHome && activeHome.dataset.home === 'prayer') renderPW();
+        return name;
+      }
+    } catch(_){}
+  }
+  return '';
+}
+
 function applyDetectedCoords(lat, lon, acc, mode, labelHint, silent){
+  var prevLat = state.lat, prevLon = state.lon;
   state.lat = parseFloat(Number(lat).toFixed(5));
   state.lon = parseFloat(Number(lon).toFixed(5));
   if(acc != null) qiblaGpsAcc = acc;
   state.tz = -(new Date().getTimezoneOffset()/60);
+  if(labelHint && labelHint.trim()){
+    state.cityName = labelHint.trim();
+    save('noor_city_name', state.cityName);
+  } else if(Math.abs(prevLat - state.lat) > 0.02 || Math.abs(prevLon - state.lon) > 0.02){
+    state.cityName = '';
+    save('noor_city_name', '');
+  }
   if(state.lat >= 6 && state.lat <= 37 && state.lon >= 66 && state.lon <= 98 && !localStorage.getItem('noor_method')){
     state.method = 'Karachi';
     state.asr = 'Hanafi';
@@ -3413,9 +3610,36 @@ function applyDetectedCoords(lat, lon, acc, mode, labelHint, silent){
   refreshHome();
   if(typeof renderQibla === 'function') renderQibla();
   if(typeof renderToday === 'function') renderToday();
+  if(!labelHint){
+    reverseGeocodeCity(state.lat, state.lon);
+  }
   if(!silent){
-    var tag = mode === 'ip' ? ('Approx. Network Location' + (labelHint ? ' (' + labelHint + ')' : '')) : 'GPS Location';
-    toast(tag + ' synced!');
+    var resolved = getResolvedCityName();
+    var tag = mode === 'ip' ? ('Approx. Location: ' + resolved) : ('Location synced: ' + resolved);
+    toast(tag);
+  }
+}
+
+var _geoWatchId = null;
+function startDynamicLocationTracking(){
+  if(!state.autoWatchLoc) return;
+  // Always refresh location silently on startup (unless user explicitly locked a manual preset)
+  var locMode = localStorage.getItem('noor_loc_mode') || 'auto';
+  if(locMode !== 'preset'){
+    detectGPS({ silent: true });
+    if(navigator.geolocation && _geoWatchId === null){
+      try {
+        _geoWatchId = navigator.geolocation.watchPosition(function(pos){
+          var nLat = pos.coords.latitude, nLon = pos.coords.longitude;
+          var movedKm = haversine(state.lat, state.lon, nLat, nLon);
+          if(movedKm >= 1.5){
+            applyDetectedCoords(nLat, nLon, pos.coords.accuracy, 'gps', '', true);
+          }
+        }, function(){}, { enableHighAccuracy: false, maximumAge: 120000, timeout: 15000 });
+      } catch(_){}
+    }
+  } else if(!state.cityName){
+    reverseGeocodeCity(state.lat, state.lon);
   }
 }
 
@@ -4614,9 +4838,9 @@ function bindSettingsTabEvents(tab){
       refreshHome();
     });
     var at = $('asrType'); if(at) at.addEventListener('change', e=>{ state.asr=e.target.value; save('noor_asr',e.target.value); refreshHome(); });
-    var cp = $('cityPreset'); if(cp) cp.addEventListener('change', e=>{ if(e.target.value==='__custom__') return; var c = CITIES.find(x=>x.name===e.target.value); if(c){ state.lat=c.lat; state.lon=c.lon; state.tz=c.tz; save('noor_lat',c.lat); save('noor_lon',c.lon); save('noor_tz',c.tz); save('noor_loc_mode','preset'); updateCityFields(); refreshHome(); toast('City set to '+c.name); } });
-    var li = $('latInput'); if(li){ li.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lat=v; save('noor_lat',v); refreshHome(); } }); }
-    var lo = $('lonInput'); if(lo){ lo.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lon=v; save('noor_lon',v); refreshHome(); } }); }
+    var cp = $('cityPreset'); if(cp) cp.addEventListener('change', e=>{ if(e.target.value==='__custom__'){ save('noor_loc_mode','auto'); detectGPS({ silent: false }); return; } var c = CITIES.find(x=>x.name===e.target.value); if(c){ state.lat=c.lat; state.lon=c.lon; state.tz=c.tz; state.cityName=c.name; save('noor_lat',c.lat); save('noor_lon',c.lon); save('noor_tz',c.tz); save('noor_city_name',c.name); save('noor_loc_mode','preset'); updateCityFields(); refreshHome(); toast('City set to '+c.name); } });
+    var li = $('latInput'); if(li){ li.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lat=v; state.cityName=''; save('noor_lat',v); save('noor_city_name',''); save('noor_loc_mode','preset'); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
+    var lo = $('lonInput'); if(lo){ lo.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.lon=v; state.cityName=''; save('noor_lon',v); save('noor_city_name',''); save('noor_loc_mode','preset'); reverseGeocodeCity(state.lat, state.lon); refreshHome(); } }); }
     var tz = $('tzInput'); if(tz){ tz.addEventListener('change', e=>{ var v=parseFloat(e.target.value); if(isFinite(v)){ state.tz=v; save('noor_tz',v); refreshHome(); } }); }
     var gps = $('gpsBtn'); if(gps) gps.addEventListener('click', () => detectGPS({ silent: false }));
     var aip = $('approxIpBtn'); if(aip) aip.addEventListener('click', async () => { toast('Detecting approximate network location...'); var ok = await fallbackIPLocation(false); if(!ok) toast('Network location unavailable offline.'); });
@@ -5320,6 +5544,11 @@ async function handleAiSend(presetQ){
   if(aiChatHistory.length > 40) aiChatHistory = aiChatHistory.slice(-40);
   save('noor_ai_chat', JSON.stringify(aiChatHistory));
   renderAiMessages();
+  if(aiAutoSpeak){
+    var speakPlain = String(res.text || '').replace(/[*#`]/g, '').replace(/\s+/g, ' ').trim();
+    var speakLang = (state.lang && state.lang !== 'ar') ? state.lang : 'en';
+    if(speakPlain) playTTS(speakPlain, speakLang);
+  }
 }
 
 
@@ -5434,9 +5663,101 @@ function renderDarood(){
   `;
 }
 
+var aiAutoSpeak = localStorage.getItem('noor_ai_autospeak') === '1';
+var aiRecognition = null;
+var aiListening = false;
+
+function updateAiAutoSpeakBtn(){
+  var b = $('aiAutoSpeakBtn');
+  if(!b) return;
+  b.textContent = aiAutoSpeak ? '🔊 Voice Reply: ON' : '🔊 Voice Reply: OFF';
+  b.style.background = aiAutoSpeak ? 'var(--gold)' : '';
+  b.style.color = aiAutoSpeak ? '#1a1a1a' : '';
+}
+
 function initAskAI(){
   updateAiModeBadge();
+  updateAiAutoSpeakBtn();
   renderAiMessages();
+  var autoSpkBtn = $('aiAutoSpeakBtn');
+  if(autoSpkBtn){
+    autoSpkBtn.addEventListener('click', function(){
+      aiAutoSpeak = !aiAutoSpeak;
+      save('noor_ai_autospeak', aiAutoSpeak ? '1' : '0');
+      updateAiAutoSpeakBtn();
+      if(!aiAutoSpeak) stopAllAudio();
+      toast(aiAutoSpeak ? 'Voice Reply enabled' : 'Voice Reply disabled');
+    });
+  }
+  var micBtn = $('aiMicBtn');
+  var vStatus = $('aiVoiceStatus');
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(micBtn){
+    if(!SpeechRec){
+      micBtn.title = 'Voice input not supported in this browser';
+      if(vStatus) vStatus.textContent = '💬 Voice input unavailable in this browser — type below or use Voice Reply';
+    } else {
+      aiRecognition = new SpeechRec();
+      aiRecognition.continuous = false;
+      aiRecognition.interimResults = true;
+      aiRecognition.onstart = function(){
+        aiListening = true;
+        micBtn.textContent = '⏹️';
+        micBtn.style.background = 'var(--red)';
+        micBtn.style.color = '#fff';
+        if(vStatus) vStatus.textContent = '🎙️ Listening... Speak your Islamic question now';
+      };
+      aiRecognition.onresult = function(event){
+        var transcript = '';
+        var isFinal = false;
+        for(var i = event.resultIndex; i < event.results.length; i++){
+          transcript += event.results[i][0].transcript;
+          if(event.results[i].isFinal) isFinal = true;
+        }
+        var inpEl = $('aiQuestionInput');
+        if(inpEl) inpEl.value = transcript;
+        if(isFinal && transcript.trim()){
+          // Automatically enable voice reply for hands-free voice chat if user spoke their question
+          if(!aiAutoSpeak){
+            aiAutoSpeak = true;
+            save('noor_ai_autospeak', '1');
+            updateAiAutoSpeakBtn();
+          }
+          handleAiSend(transcript.trim());
+        }
+      };
+      aiRecognition.onerror = function(e){
+        aiListening = false;
+        micBtn.textContent = '🎙️';
+        micBtn.style.background = '';
+        micBtn.style.color = '';
+        var errMsg = (e && e.error === 'not-allowed')
+          ? 'Microphone permission denied. Allow mic access in browser settings.'
+          : ('Voice input error: ' + (e && e.error ? e.error : 'try again'));
+        if(vStatus) vStatus.textContent = '⚠️ ' + errMsg;
+        toast(errMsg);
+      };
+      aiRecognition.onend = function(){
+        aiListening = false;
+        micBtn.textContent = '🎙️';
+        micBtn.style.background = '';
+        micBtn.style.color = '';
+        if(vStatus && vStatus.textContent.indexOf('Listening') !== -1){
+          vStatus.textContent = '🎙️ Tap Mic to speak your Islamic question';
+        }
+      };
+      micBtn.addEventListener('click', function(){
+        if(aiListening){
+          try { aiRecognition.stop(); } catch(_){}
+          return;
+        }
+        stopAllAudio();
+        var langMap = {en:'en-US', kn:'kn-IN', te:'te-IN', ta:'ta-IN', hi:'hi-IN', ur:'ur-PK', fr:'fr-FR', dz:'ar-DZ', ber:'fr-FR', ar:'ar-SA', da:'da-DK'};
+        aiRecognition.lang = langMap[state.lang] || 'en-US';
+        try { aiRecognition.start(); } catch(err){ toast('Could not start microphone: ' + err.message); }
+      });
+    }
+  }
   var provSel = $('aiProviderSelect');
   var keyInp = $('aiApiKeyInput');
   if(provSel) provSel.value = aiProvider;
@@ -5624,10 +5945,8 @@ async function init(){
   
   renderSettingsTab('general');
   
-  // auto-detect location silently on first launch (never overwrite a saved city preset)
-  if(!localStorage.getItem('noor_lat')){
-    detectGPS({ silent: true });
-  }
+  // dynamically track & update location and city name automatically
+  startDynamicLocationTracking();
   renderCatTabs();
   renderAdhkar();
   renderDuas();
