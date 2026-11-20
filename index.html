@@ -1380,12 +1380,15 @@ const state = {
   tuneMins: JSON.parse(localStorage.getItem('noor_tune_mins') || '{"fajr":0,"sunrise":0,"dhuhr":0,"asr":0,"maghrib":0,"isha":0}'),
   lead: parseInt(localStorage.getItem('noor_lead') || '0'),
   reciter: localStorage.getItem('noor_reciter') || RECITERS[0].id,
+  urduTranslator: localStorage.getItem('noor_urdu_translator') || 'translations/urdu_shamshad_ali_khan_46kbps',
   reciterGender: localStorage.getItem('noor_reciter_gender') || 'all',
   speed: parseFloat(localStorage.getItem('noor_speed') || '1'),
   repeat: parseInt(localStorage.getItem('noor_repeat') || '1'),
   translit: localStorage.getItem('noor_translit') === '1',
   autoCache: localStorage.getItem('noor_autocache') !== '0',
-  trLang: localStorage.getItem('noor_trlang') || 'en',
+  defaultTrLang: localStorage.getItem('noor_default_trlang') || localStorage.getItem('noor_trlang') || 'en',
+  trLang: localStorage.getItem('noor_default_trlang') || localStorage.getItem('noor_trlang') || 'en',
+  trVoiceGender: localStorage.getItem('noor_tr_voice_gender') || 'auto',
   syncTrWithDisplayLang: localStorage.getItem('noor_sync_tr_disp_lang') === '1',
   trAudioLangs: (function(){
     try {
@@ -1648,8 +1651,8 @@ function isAyyamAlBid(date){
 function dayTheme(date){
   var d=date.getDay(); // 0 Sun..6 Sat
   if(d===5) return 'Friday (Jumu\'ah)';
-  if(d===1||d===4) return '';
-  return '';
+  if(d===1||d===4) return 'Monday & Thursday (Sunnah)';
+  return 'Daily';
 }
 
 // ---------- Recommendations ----------
@@ -1801,7 +1804,7 @@ async function playAyah(surah, idx){
     if(mode===0){ playAyah(surah, idx); return; }
     if(mode===3){ repeatCount++; if(repeatCount<3){ playAyah(surah, idx); return; } repeatCount=0; }
     if(idx+1 < surah.ayahs.length) playAyah(surah, idx+1);
-    else { isPlaying=false; updatePlayBtn(); }
+    else { resetSurahToStart(surah); }
     return;
   }
   var key = `${rec}|${surah.number}|${ay.number}`;
@@ -1883,10 +1886,29 @@ player.addEventListener('ended', async () => {
   if(currentAyahIndex+1 < surah.ayahs.length){
     playAyah(surah, currentAyahIndex+1);
   } else {
-    isPlaying=false; updatePlayBtn();
-    var mp=$('miniPlayer'); if(mp) mp.classList.add('hidden');
+    resetSurahToStart(surah);
   }
 });
+
+function resetSurahToStart(surah){
+  isPlaying = false;
+  repeatCount = 0;
+  currentAyahIndex = 0;
+  try { player.pause(); player.currentTime = 0; } catch(_){}
+  if(surah && surah.ayahs && surah.ayahs.length){
+    highlightAyah(0);
+    var firstEl = document.querySelector('.ayah[data-idx="0"]');
+    if(firstEl) firstEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  var at = $('audioTime');
+  if(at){
+    var dur = (player && isFinite(player.duration) && player.duration > 0) ? Math.floor(player.duration) : 0;
+    var dm = Math.floor(dur/60), ds = dur%60;
+    at.textContent = '0:00 / ' + dm + ':' + String(ds).padStart(2,'0');
+  }
+  updatePlayBtn();
+  setMiniStatus('Ready (Ayah 1)');
+}
 
 function updatePlayBtn(){
   var btn = $('playBtn');
@@ -2084,7 +2106,63 @@ function chunkTextForTTS(text, maxLen){
   return chunks.length ? chunks : [text];
 }
 
-function speakWithBrowser(text, langCode, preferFemale){
+// Known Microsoft / regional voice names by gender (including non-English/transliterated names like Salman, Asad, Mohan, Ravi, Gul, Uzma, etc.)
+var KNOWN_FEMALE_VOICES = [
+  'zira','heera','samantha','victoria','karen','moira','tessa','fiona','veena','lekha','aditi','kalpana','swara',
+  'amelie','audrey','aurelie','sara','nora','alice','anna','monica','paulina','luciana','joana','kyoko','yuna',
+  'hoda','laila','salma','zariyah','naayila','farida','mariam','adri','natasha','clara','sonia','libby','maisie',
+  'yan','emily','neerja','asilia','ezinne','molly','rosa','luna','imani','ava','emma','jenny','aria','ana',
+  'michelle','leah','elena','sofia','catalina','salome','belkys','ramona','andrea','elvira','ximena','teresa',
+  'marta','karla','dalia','yolanda','margarita','camila','karina','tania','lorena','paloma','valentina','paola',
+  'anu','elsa','isabella','siti','eka','sapna','son','zuri','rehema','pallavi','saranya','kani','venba',
+  'shruti','gul','uzma','madina','hoai'
+];
+
+var KNOWN_MALE_VOICES = [
+  'david','ravi','mark','willem','hamdan','ali','ismail','shaker','basil','tim','fahad','rami','ahmed',
+  'jamal','abdullah','muadh','hamid','yasser','hadi','saleh','enric','antonin','aled','jeppe','jonas','jan',
+  'florian','conrad','killian','william','liam','ryan','thomas','sam','connor','prabhat','chilemba','abeo',
+  'mitchell','james','wayne','elimu','andrew','brian','guy','christopher','eric','roger','steffan','luke',
+  'tomas','marcelo','lorenzo','gonzalo','juan','manuel','emilio','luis','alvaro','javier','andres','carlos',
+  'jorge','federico','roberto','alex','victor','mario','rodrigo','alonso','mateo','sebastian','kert','harri',
+  'angelo','gerard','jean','antoine','thierry','fabrice','henri','remy','colm','roi','madhur','srecko','tamas',
+  'ardi','gunnar','diego','giuseppe','dimas','giorgi','gagan','injun','hyunsu','leonas','nils','mithun',
+  'manohar','osman','joseph','finn','maarten','marek','antonio','duarte','emil','rok','muuse','ilir','mattias',
+  'rafiki','daudi','valluvar','kumar','surya','anbu','mohan','ahmet','salman','asad','sardor','nam minh','themba'
+];
+
+function classifyVoiceGender(voice){
+  if(!voice || !voice.name) return 'unknown';
+  var low = voice.name.toLowerCase();
+  if(/\b(female|woman|girl)\b/i.test(low)) return 'female';
+  if(/(^|\b)(male|man|boy)(\b|$)/i.test(low)) return 'male';
+  // Extract the voice persona token right after "Microsoft " if present
+  var m = low.match(/microsoft\s+([a-z0-9\s]+?)\s+(online|mobile|desktop|-)/i);
+  var persona = m ? m[1].trim() : low;
+  if(KNOWN_FEMALE_VOICES.some(function(n){ return persona.indexOf(n) !== -1 || low.indexOf(' ' + n + ' ') !== -1; })) return 'female';
+  if(KNOWN_MALE_VOICES.some(function(n){ return persona.indexOf(n) !== -1 || low.indexOf(' ' + n + ' ') !== -1; })) return 'male';
+  return 'unknown';
+}
+
+function pickVoiceByGender(voices, genderMode, langCode){
+  if(!voices || !voices.length) return null;
+  if(genderMode === 'female'){
+    return voices.find(function(v){ return classifyVoiceGender(v) === 'female'; }) || voices[0];
+  }
+  if(genderMode === 'male'){
+    // Prefer Online (Natural) male voice for the matching language first, then any male voice
+    var natMale = voices.find(function(v){ return classifyVoiceGender(v) === 'male' && /online|natural/i.test(v.name); });
+    if(natMale) return natMale;
+    var anyMale = voices.find(function(v){ return classifyVoiceGender(v) === 'male'; });
+    if(anyMale) return anyMale;
+    var nonFemale = voices.find(function(v){ return classifyVoiceGender(v) !== 'female'; });
+    if(nonFemale) return nonFemale;
+    return voices[0];
+  }
+  return voices[0];
+}
+
+function speakWithBrowser(text, langCode, preferFemale, voiceGender){
   return new Promise((resolve, reject) => {
     if(!('speechSynthesis' in window)) return reject(new Error('No SpeechSynthesis'));
     loadVoices();
@@ -2092,18 +2170,48 @@ function speakWithBrowser(text, langCode, preferFemale){
     var target = map[langCode] || 'en-US';
     var prefix = (langCode || 'en').toLowerCase();
     var matching = cachedVoices.filter(v => (v.lang || '').toLowerCase().startsWith(prefix));
-    if((prefix === 'ar' || prefix === 'ur') && matching.length === 0){
-      return reject(new Error('No ' + prefix.toUpperCase() + ' device voice'));
+    if(!matching.length){
+      var langOnly = prefix.split('-')[0];
+      matching = cachedVoices.filter(v => (v.lang || '').toLowerCase().split('-')[0] === langOnly);
     }
     var u = new SpeechSynthesisUtterance(text);
     u.lang = target;
     u.rate = state.speed || 1;
-    if(matching.length){
-      var fem = preferFemale && matching.find(v => /female|hoda|laila|salma|zariyah|mageda/i.test(v.name));
-      u.voice = fem || matching[0];
+    var effectiveGender = (langCode !== 'ar') ? (voiceGender || state.trVoiceGender || 'auto') : (preferFemale ? 'female' : 'auto');
+    var pool = matching.length ? matching : cachedVoices;
+    var chosen = null;
+    if(pool && pool.length){
+      chosen = pickVoiceByGender(pool, effectiveGender, langCode);
+      if(effectiveGender === 'male' && chosen && classifyVoiceGender(chosen) === 'female'){
+        var altMale = cachedVoices.find(function(v){ return classifyVoiceGender(v) === 'male'; })
+                   || cachedVoices.find(function(v){ return classifyVoiceGender(v) !== 'female'; });
+        chosen = altMale || null;
+      }
+      if(chosen){
+        u.voice = chosen;
+      }
+      var gKind = classifyVoiceGender(chosen);
+      if(effectiveGender === 'female'){
+        u.pitch = (gKind === 'female') ? 1.0 : 1.22;
+      } else if(effectiveGender === 'male'){
+        u.pitch = (gKind === 'male') ? 0.96 : 0.72;
+      } else {
+        u.pitch = 1.0;
+      }
+    } else if(langCode !== 'ar'){
+      if(effectiveGender === 'female') u.pitch = 1.22;
+      else if(effectiveGender === 'male') u.pitch = 0.72;
     }
-    u.onend = () => resolve();
-    u.onerror = () => reject(new Error('SpeechSynthesis error'));
+    if(chosen && chosen.lang){
+      u.lang = chosen.lang;
+    }
+    var settled = false;
+    var timer = setTimeout(function(){
+      if(!settled){ settled = true; resolve(); }
+    }, Math.max(4000, String(text || '').length * 140));
+    u.onend = () => { if(!settled){ settled = true; clearTimeout(timer); resolve(); } };
+    u.onerror = (err) => { if(!settled){ settled = true; clearTimeout(timer); reject(err || new Error('SpeechSynthesis error')); } };
+    try { if(window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch(_){}
     window.speechSynthesis.speak(u);
   });
 }
@@ -2148,11 +2256,29 @@ async function playTTS(text, lang, opts){
   var chunks = chunkTextForTTS(clean, 175);
   var ttsTl = (code === 'dz') ? 'ar' : ((code === 'ber') ? 'kab' : code);
 
+  var defaultUrGender = 'auto';
+  if(code === 'ur' && state.urduTranslator){
+    var urEntry = RECITERS.find(function(r){ return r.id === state.urduTranslator; });
+    if(urEntry && urEntry.gender) defaultUrGender = urEntry.gender;
+  }
+  var trGender = opts.voiceGender || (code !== 'ar' ? ((state.trVoiceGender && state.trVoiceGender !== 'auto') ? state.trVoiceGender : defaultUrGender) : 'auto');
+  var preferBrowserForGender = (code !== 'ar') && (trGender === 'male' || trGender === 'female') && ('speechSynthesis' in window);
   for(var i = 0; i < chunks.length; i++){
     if(mySession !== ttsSessionId) return;
     var chunk = chunks[i];
     var played = false;
-    if(navigator.onLine){
+    if(preferBrowserForGender){
+      try {
+        loadVoices();
+        var vPrefix = (code === 'dz') ? 'ar' : ((code === 'ber') ? 'fr' : code.toLowerCase());
+        var hasLangVoice = cachedVoices.some(v => (v.lang || '').toLowerCase().startsWith(vPrefix));
+        var modeTag = trGender + (hasLangVoice ? '' : '·sys');
+        setMiniStatus('Playing (' + activeLangLabel + ' · ' + modeTag + ')...');
+        await speakWithBrowser(chunk, code, trGender === 'female', trGender);
+        played = true;
+      } catch(_){}
+    }
+    if(!played && navigator.onLine){
       var endpoints = [
         'https://translate.google.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=tw-ob&q=' + encodeURIComponent(chunk),
         'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=gtx&q=' + encodeURIComponent(chunk)
@@ -2183,7 +2309,7 @@ async function playTTS(text, lang, opts){
           return;
         }
         setMiniStatus('Playing (' + activeLangLabel + ')...');
-        await speakWithBrowser(chunk, code, !!opts.preferFemale);
+        await speakWithBrowser(chunk, code, !!opts.preferFemale, trGender);
         played = true;
       } catch(e){
         setMiniStatus('Unavailable');
@@ -2375,8 +2501,8 @@ if(typeof MutationObserver !== 'undefined'){
 function applyLang(){
   document.documentElement.lang = state.lang;
   document.documentElement.dir = (state.lang === 'ar' || state.lang === 'ur') ? 'rtl' : 'ltr';
-  // Sync translation language with selected display language so Quran/Adhkar reflect it immediately
-  state.trLang = state.lang;
+  // Preserve user's chosen translation / default translation language
+  state.trLang = state.defaultTrLang || state.trLang || 'en';
   save('noor_trlang', state.trLang);
   var trSel = $('trLang'); if(trSel) trSel.value = state.trLang;
   var ls = $('langSelect'); if(ls && ls.value !== state.lang) ls.value = state.lang;
@@ -2421,13 +2547,7 @@ function renderPW(){
   pws.forEach((el,i)=>{ el.classList.toggle('active', i===activeIdx); });
   var cLabel = getResolvedCityName();
   var tzStr = 'UTC' + (state.tz >= 0 ? '+' + state.tz : state.tz);
-  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> 
-  (
-  ${state.lat.toFixed(3)}, 
-  ${state.lon.toFixed(3)} · 
-  ${tzStr}) • 
-  
-  <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
+  $('locLabel').innerHTML = `📍 <strong>${cLabel}</strong> (${state.lat.toFixed(3)}, ${state.lon.toFixed(3)} · ${tzStr}) • ${state.method} • ${state.asr} <button class="btn-chip" style="padding:2px 8px;font-size:10px;margin-left:6px;" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=prayer]'); if(s) s.click();},60);">⚙️ Adjust Times</button>`;
 }
 
 function renderToday(){
@@ -2799,6 +2919,7 @@ async function openSurah(num){
   // populate tr lang
   var sel = $('trLang');
   sel.innerHTML = LANGS.map(l=>`<option value="${l.code}" ${l.code===state.trLang?'selected':''}>${l.name}</option>`).join('');
+  sel.value = state.trLang;
 }
 // ---------- Live Translation Cache (Telugu & Danish) ----------
 var trMemCache = {};
@@ -3201,6 +3322,40 @@ function renderNotifSettings(){
   var html = prayers.map(p=>`<div class="notif-item"><span>${p}</span><div class="toggle ${state.notif?'on':''}" data-p="${p}"></div></div>`).join('');
   el.innerHTML = html;
 }
+function applyDefaultTranslationLanguage(langCode, opts){
+  opts = opts || {};
+  var code = langCode || 'en';
+  state.defaultTrLang = code;
+  state.trLang = code;
+  save('noor_default_trlang', code);
+  save('noor_trlang', code);
+  if(code !== 'en' && code !== 'ar'){
+    if(!Array.isArray(state.trAudioLangs)) state.trAudioLangs = [];
+    if(state.trAudioLangs.indexOf(code) === -1){
+      state.trAudioLangs.push(code);
+      save('noor_tr_audio_langs', JSON.stringify(state.trAudioLangs));
+    }
+  }
+  var sdtl = $('setDefaultTrLang');
+  if(sdtl){
+    if(!sdtl.options.length){
+      sdtl.innerHTML = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join('');
+    }
+    sdtl.value = code;
+  }
+  var trSel = $('trLang');
+  if(trSel){
+    if(!trSel.options.length){
+      trSel.innerHTML = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join('');
+    }
+    trSel.value = code;
+  }
+  if(!opts.skipRender){
+    if(currentSurah && typeof renderAyahs === 'function') renderAyahs();
+    if(typeof renderAdhkar === 'function') renderAdhkar();
+  }
+}
+
 function populateSelects(){
   var opts = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join('');
   var ls = $('langSelect'); if(ls){ ls.innerHTML = opts; ls.value = state.lang; }
@@ -3214,8 +3369,32 @@ function populateSelects(){
   if(arList.length) ropts += '<optgroup label="Arabic Recitations">' + arList.map(r=>`<option value="${r.id}">${r.name}</option>`).join('') + '</optgroup>';
   if(urList.length) ropts += '<optgroup label="Urdu Translations">' + urList.map(r=>`<option value="${r.id}">${r.name}</option>`).join('') + '</optgroup>';
   if(otherList.length) ropts += '<optgroup label="Other Translations">' + otherList.map(r=>`<option value="${r.id}">${r.name}</option>`).join('') + '</optgroup>';
-  var rs = $('reciterSelect'); if(rs){ rs.innerHTML = ropts; if(filtered.find(r=>r.id===state.reciter)) rs.value = state.reciter; else if(filtered.length){ state.reciter=filtered[0].id; rs.value=state.reciter; } }
+  var rs = $('reciterSelect');
+  if(rs){
+    rs.innerHTML = ropts;
+    if(filtered.find(r=>r.id===state.reciter)){
+      rs.value = state.reciter;
+    } else if(RECITERS.find(r=>r.id===state.reciter)){
+      // Keep saved reciter even if filtered gender list doesn't include it
+      rs.value = state.reciter;
+    } else if(filtered.length){
+      state.reciter = filtered[0].id;
+      rs.value = state.reciter;
+    }
+  }
   var sr = $('setReciter'); if(sr){ sr.innerHTML = ropts; sr.value = state.reciter; }
+  var sut = $('setUrduTranslator');
+  if(sut){
+    var urTranslators = RECITERS.filter(function(r){ return r.lang === 'ur'; });
+    sut.innerHTML = urTranslators.map(function(r){
+      return '<option value="' + r.id + '">' + r.name + ' (' + r.gender + ')</option>';
+    }).join('');
+    if(state.urduTranslator && urTranslators.some(function(r){ return r.id === state.urduTranslator; })){
+      sut.value = state.urduTranslator;
+    } else if(urTranslators.length){
+      sut.value = urTranslators[0].id;
+    }
+  }
   var gsel = $('reciterGender'); if(gsel){ gsel.value = state.reciterGender; }
   var cm = $('calcMethod'); if(cm){ cm.innerHTML = Object.keys(METHOD_ANGLES).map(m=>`<option value="${m}">${m}</option>`).join(''); cm.value = state.method; }
   var csp = $('cityPreset'); if(csp){ csp.innerHTML = '<option value="__custom__">Custom / GPS</option>' + CITIES.map(c=>`<option value="${c.name}">${c.name}</option>`).join(''); }
@@ -3224,7 +3403,7 @@ function populateSelects(){
   var ss = $('setSpeed'); if(ss) ss.value = state.speed;
   var srp = $('setRepeat'); if(srp) srp.value = state.repeat;
   renderNotifSettings();
-  var adLang = $('adLangSel'); if(adLang){ adLang.innerHTML = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join(''); adLang.value = state.trLang; }
+  var adLang = $('adLangSel'); if(adLang){ adLang.innerHTML = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join(''); adLang.value = state.trLang; } if($('trLang')) $('trLang').value = state.trLang;
 }
 
 function renderList(id, items, ordered=false){
@@ -3427,7 +3606,8 @@ const PRAYER_GUIDE = [
 function renderPrayerGuide(filter=''){
   var list = PRAYER_GUIDE;
   if(filter) list = list.filter(p=> (p.name+p.ar+(p.header||'')+(p.virtue||'')).toLowerCase().includes(filter.toLowerCase()));
-  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">';
+  var html = '<input class="search" id="pgSearch" placeholder="Search prayer guide..." oninput="renderPrayerGuide(this.value)">';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">';
   list.forEach((p,i)=>{
     html += `<div class="dhikr" style="padding:12px;margin-bottom:0;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -3465,7 +3645,7 @@ function renderPrayerGuide(filter=''){
     </div>`;
   });
   html += '</div>';
-  var el = $('prayerGuide'); if(el) el.innerHTML = html;
+  var el = $('prayerGuide') || $('ibaadatContent'); if(el) el.innerHTML = html;
 }
 
 const HADITHS = [
@@ -4629,6 +4809,9 @@ function renderSettingsTab(tab){
   } else if(tab==='audio'){
     container.innerHTML = `<div class="card"><h3>Audio</h3>
       <div class="row"><label>Default reciter</label><select id="setReciter"></select></div>
+      <div class="row"><label>Urdu translator (Audio)</label><select id="setUrduTranslator"></select></div>
+      <div class="row"><label>Default translation language</label><select id="setDefaultTrLang"></select></div>
+      <div class="row"><label>Translation audio voice</label><select id="setTrVoiceGender"><option value="auto">Auto (Default)</option><option value="male">Male Voice</option><option value="female">Female Voice</option></select></div>
       <div class="row"><label>Speed</label><select id="setSpeed"><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
       <div class="row"><label>Repeat</label><select id="setRepeat"><option value="1">1x</option><option value="3">3x</option><option value="0">Loop</option></select></div>
       <div class="row"><label>Auto-cache played ayahs</label><div class="toggle" id="togAutoCache"></div></div>
@@ -4644,6 +4827,15 @@ function renderSettingsTab(tab){
         </div>
         <div class="muted">Select which translation play buttons appear on Quran, Adhkar, Duas &amp; Hadith cards (Arabic &amp; English always shown):</div>
         <div id="trAudioLangChecks" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:6px;margin-top:2px;"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
+        <button type="button" class="btn-primary" id="btnTestReciterAudio">▶ Test Reciter</button>
+        <button type="button" class="btn-chip" id="btnTestTrAudio">🔊 Test Translation Voice</button>
+        <button type="button" class="btn-chip" id="btnTestUrduTrAudio">🎙️ Test Urdu Translator</button>
+        <button type="button" class="btn-chip" id="btnCheckMp3Stream">🌐 Check MP3 Stream</button>
+        <button type="button" class="btn-chip" id="btnListTtsVoices">🗣️ TTS Voices</button>
+        <button type="button" class="btn-chip" id="btnStopTestAudio">■ Stop</button>
+        <span class="muted" id="testAudioStatus" style="font-size:11px;"></span>
       </div>
     </div>`;
   } else if(tab==='prayer'){
@@ -4740,9 +4932,225 @@ function bindSettingsTabEvents(tab){
     var rg = $('reciterGender'); if(rg) rg.addEventListener('change', e=>{ state.reciterGender=e.target.value; save('noor_reciter_gender',e.target.value); populateSelects(); });
   }
   if(tab==='audio'){
-    var sr = $('setReciter'); if(sr) sr.addEventListener('change', e=>{ state.reciter=e.target.value; save('noor_reciter',e.target.value); $('reciterSelect').value=e.target.value; });
-    var ss = $('setSpeed'); if(ss) ss.addEventListener('change', e=>{ state.speed=parseFloat(e.target.value); save('noor_speed',e.target.value); player.playbackRate=state.speed; $('speedSelect').value=e.target.value; });
-    var srp = $('setRepeat'); if(srp) srp.addEventListener('change', e=>{ state.repeat=parseInt(e.target.value); save('noor_repeat',e.target.value); $('repeatSelect').value=e.target.value; });
+    var sr = $('setReciter'); if(sr) sr.addEventListener('change', e=>{ state.reciter=e.target.value; save('noor_reciter',e.target.value); var rs=$('reciterSelect'); if(rs) rs.value=e.target.value; });
+    var sut = $('setUrduTranslator');
+    if(sut){
+      sut.addEventListener('change', function(e){
+        state.urduTranslator = e.target.value;
+        save('noor_urdu_translator', state.urduTranslator);
+        var chosenObj = RECITERS.find(function(r){ return r.id === state.urduTranslator; });
+        if(chosenObj && chosenObj.gender){
+          state.trVoiceGender = chosenObj.gender;
+          save('noor_tr_voice_gender', chosenObj.gender);
+          var stvgEl = $('setTrVoiceGender'); if(stvgEl) stvgEl.value = chosenObj.gender;
+        }
+        toast('Urdu translator: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var sdtl = $('setDefaultTrLang');
+    if(sdtl){
+      sdtl.innerHTML = LANGS.map(l=>`<option value="${l.code}">${l.name}</option>`).join('');
+      sdtl.value = state.defaultTrLang || state.trLang || 'en';
+      sdtl.addEventListener('change', e=>{
+        applyDefaultTranslationLanguage(e.target.value);
+        toast('Default translation: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var stvg = $('setTrVoiceGender'); if(stvg){ stvg.value = state.trVoiceGender || 'auto'; stvg.addEventListener('change', e=>{ state.trVoiceGender = e.target.value; save('noor_tr_voice_gender', e.target.value); toast('Translation voice: ' + e.target.options[e.target.selectedIndex].text); }); }
+    var bTestRec = $('btnTestReciterAudio');
+    if(bTestRec){
+      bTestRec.addEventListener('click', function(){
+        var recId = ($('setReciter') && $('setReciter').value) || state.reciter || RECITERS[0].id;
+        var stEl = $('testAudioStatus');
+        stopAllAudio();
+        if(recId === 'Female_TTS'){
+          if(stEl) stEl.textContent = 'Playing Arabic TTS sample...';
+          playTTS('بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ', 'ar', {preferFemale:true});
+          return;
+        }
+        var url = audioUrl(recId, 1, 1);
+        if(stEl) stEl.textContent = 'Testing reciter (1:1)...';
+        showMiniPlayer('Test Reciter · Surah 1:1');
+        setMiniStatus('Buffering...');
+        player.src = url;
+        player.playbackRate = state.speed || 1;
+        player.play().then(function(){
+          isPlaying = true;
+          updatePlayBtn();
+          setMiniStatus('Playing test...');
+          if(stEl) stEl.textContent = 'Playing Surah 1:1 at ' + (state.speed || 1) + 'x';
+        }).catch(function(){
+          if(stEl) stEl.textContent = 'Reciter stream unavailable';
+          toast('Reciter audio unavailable');
+        });
+      });
+    }
+    var lastSpokenTestSignature = '';
+
+    function getUrduTranslatorVoiceProfile(urId){
+      var profiles = {
+        'translations/urdu_shamshad_ali_khan_46kbps': { gender: 'male', rateMul: 1.0, pitch: 0.88, hintName: 'shamshad' },
+        'translations/urdu_ameer_ul_qadri': { gender: 'male', rateMul: 0.95, pitch: 0.82, hintName: 'qadri' },
+        'translations/urdu_taqi_usmani': { gender: 'male', rateMul: 0.92, pitch: 0.78, hintName: 'usmani' },
+        'translations/urdu_javed_ahmed_ghamidi': { gender: 'male', rateMul: 1.03, pitch: 0.94, hintName: 'ghamidi' },
+        'translations/urdu_israr_ahmed': { gender: 'male', rateMul: 0.9, pitch: 0.75, hintName: 'israr' },
+        'translations/urdu_ahmed_raza_khan': { gender: 'male', rateMul: 0.94, pitch: 0.85, hintName: 'raza' },
+        'translations/urdu_fateh_muhammad_jalandhry': { gender: 'male', rateMul: 1.0, pitch: 0.9, hintName: 'jalandhry' },
+        'translations/urdu_farhat_hashmi': { gender: 'female', rateMul: 1.02, pitch: 1.16, hintName: 'farhat' }
+      };
+      return profiles[urId] || { gender: 'male', rateMul: 1.0, pitch: 0.88, hintName: 'default' };
+    }
+
+    function speakUrduTranslatorSample(urId, trObj){
+      var prof = getUrduTranslatorVoiceProfile(urId);
+      var stEl = $('testAudioStatus');
+      var sampleText = 'شروع اللہ کے نام سے جو بڑا مہربان نہایت رحم والا ہے۔';
+      var selectedGenderMode = ($('setTrVoiceGender') && $('setTrVoiceGender').value) || 'auto';
+      var effectiveGender = (selectedGenderMode !== 'auto') ? selectedGenderMode : prof.gender;
+      stopAllAudio();
+      showMiniPlayer((trObj ? trObj.name : 'Urdu Translator') + ' (' + effectiveGender + ')');
+      setMiniStatus('Playing (' + (trObj ? trObj.name.split(' (')[0] : 'Urdu') + ' · ' + effectiveGender + ')...');
+      if('speechSynthesis' in window){
+        loadVoices();
+        var urVoices = cachedVoices.filter(function(v){ return (v.lang || '').toLowerCase().startsWith('ur'); });
+        var pool = urVoices.length ? urVoices : cachedVoices;
+        var genderFiltered = pool.filter(function(v){
+          var g = classifyVoiceGender(v);
+          return effectiveGender === 'female' ? g === 'female' : g !== 'female';
+        });
+        var candidates = genderFiltered.length ? genderFiltered : pool;
+        var urList = RECITERS.filter(function(r){ return r.lang === 'ur'; });
+        var idxInList = Math.max(0, urList.findIndex(function(r){ return r.id === urId; }));
+        var chosen = candidates.length ? candidates[idxInList % candidates.length] : null;
+        var pitchVal = (effectiveGender === 'female') ? 1.18 : prof.pitch;
+        var rateVal = (state.speed || 1) * prof.rateMul;
+        var voiceKey = (chosen && (chosen.voiceURI || chosen.name)) || ('lang-ur-' + effectiveGender);
+        var sig = effectiveGender + '|' + voiceKey + '|' + pitchVal.toFixed(2) + '|' + rateVal.toFixed(2);
+        if(sig === lastSpokenTestSignature && candidates.length > 1){
+          var nextIdx = (candidates.indexOf(chosen) + 1) % candidates.length;
+          chosen = candidates[nextIdx];
+          voiceKey = (chosen && (chosen.voiceURI || chosen.name)) || ('lang-ur-' + effectiveGender);
+          sig = effectiveGender + '|' + voiceKey + '|' + pitchVal.toFixed(2) + '|' + rateVal.toFixed(2);
+        }
+        lastSpokenTestSignature = sig;
+        if(stEl){
+          var vLabel = chosen ? chosen.name : ('Browser ' + effectiveGender + ' TTS');
+          stEl.textContent = 'Playing ' + (trObj ? trObj.name : urId) + ' → ' + vLabel + ' [' + effectiveGender + ', p:' + pitchVal + ']';
+        }
+        var u = new SpeechSynthesisUtterance(sampleText);
+        if(chosen){
+          u.voice = chosen;
+          u.lang = chosen.lang || 'ur-PK';
+        } else {
+          u.lang = 'ur-PK';
+        }
+        u.rate = rateVal;
+        u.pitch = pitchVal;
+        u.onend = function(){ setMiniStatus('Done'); if(stEl) stEl.textContent = 'Finished: ' + (trObj ? trObj.name : urId); };
+        u.onerror = function(){ setMiniStatus('Done'); };
+        try { if(window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch(_){}
+        window.speechSynthesis.speak(u);
+      } else {
+        if(stEl) stEl.textContent = 'Testing Urdu (' + effectiveGender + ')...';
+        playTTS(sampleText, 'ur', { voiceGender: effectiveGender });
+      }
+    }
+
+    var bTestTr = $('btnTestTrAudio');
+    if(bTestTr){
+      bTestTr.addEventListener('click', function(){
+        var trCode = ($('setDefaultTrLang') && $('setDefaultTrLang').value) || state.defaultTrLang || state.trLang || 'en';
+        var voiceG = ($('setTrVoiceGender') && $('setTrVoiceGender').value) || state.trVoiceGender || 'auto';
+        var stEl = $('testAudioStatus');
+        if(trCode === 'ur'){
+          var urId = ($('setUrduTranslator') && $('setUrduTranslator').value) || state.urduTranslator || 'translations/urdu_shamshad_ali_khan_46kbps';
+          var trObj = RECITERS.find(function(r){ return r.id === urId; });
+          speakUrduTranslatorSample(urId, trObj);
+          return;
+        }
+        var samples = {
+          en: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.',
+          hi: 'अल्लाह के नाम से जो बड़ा कृपालु और अत्यन्त दयावान है।',
+          te: 'అత్యంత కరుణామయుడు, అపార కరుణ కలిగిన అల్లాహ్ పేరుతో.',
+          ta: 'அளவற்ற அருளாளனும் நிகரற்ற அன்புடையோனுமாகிய அல்லாஹ்வின் பெயரால்.',
+          kn: 'ಅತ್ಯಂತ ಕರುಣಾಮಯಿ ಹಾಗೂ ಅಪಾರ ದಯಾಳುವಾದ ಅಲ್ಲಾಹನ ಹೆಸರಿನಲ್ಲಿ.',
+          fr: "Au nom d'Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+          da: 'I Allahs, den Nådiges, den Barmhjertiges navn.'
+        };
+        var sampleText = samples[trCode] || samples.en;
+        if(stEl) stEl.textContent = 'Testing ' + trCode.toUpperCase() + ' (' + voiceG + ')...';
+        playTTS(sampleText, trCode, {voiceGender: voiceG});
+      });
+    }
+    var bTestUrduTr = $('btnTestUrduTrAudio');
+    if(bTestUrduTr){
+      bTestUrduTr.addEventListener('click', function(){
+        var urId = ($('setUrduTranslator') && $('setUrduTranslator').value) || state.urduTranslator || 'translations/urdu_shamshad_ali_khan_46kbps';
+        var trObj = RECITERS.find(function(r){ return r.id === urId; });
+        speakUrduTranslatorSample(urId, trObj);
+      });
+    }
+    var bCheckMp3 = $('btnCheckMp3Stream');
+    if(bCheckMp3){
+      bCheckMp3.addEventListener('click', async function(){
+        var recId = ($('setReciter') && $('setReciter').value) || state.reciter || RECITERS[0].id;
+        var urId = ($('setUrduTranslator') && $('setUrduTranslator').value) || state.urduTranslator || 'translations/urdu_shamshad_ali_khan_46kbps';
+        var targetId = (recId === 'Female_TTS') ? urId : recId;
+        var url = audioUrl(targetId, 1, 1);
+        var stEl = $('testAudioStatus');
+        if(stEl) stEl.textContent = 'Checking MP3 stream: ' + url + ' ...';
+        try {
+          var resp = await fetch(url, { method: 'GET' });
+          if(resp.ok){
+            var blob = await resp.blob();
+            var kb = Math.round(blob.size / 1024);
+            if(stEl) stEl.textContent = 'MP3 OK (' + resp.status + ', ' + kb + ' KB): ' + targetId;
+            toast('MP3 Stream Reachable (' + kb + ' KB)');
+          } else {
+            if(stEl) stEl.textContent = 'MP3 HTTP ' + resp.status + ' for ' + targetId;
+            toast('MP3 Stream returned HTTP ' + resp.status);
+          }
+        } catch(err){
+          if(stEl) stEl.textContent = 'MP3 Unreachable (offline/network/CORS): ' + targetId;
+          toast('MP3 Stream unreachable');
+        }
+      });
+    }
+    var bListVoices = $('btnListTtsVoices');
+    if(bListVoices){
+      bListVoices.addEventListener('click', function(){
+        var stEl = $('testAudioStatus');
+        if(!('speechSynthesis' in window)){
+          if(stEl) stEl.textContent = 'SpeechSynthesis not supported on this device';
+          toast('SpeechSynthesis unsupported');
+          return;
+        }
+        loadVoices();
+        if(!cachedVoices || !cachedVoices.length){
+          if(stEl) stEl.textContent = 'No browser TTS voices loaded yet (try again or check OS TTS settings)';
+          toast('No browser TTS voices found');
+          return;
+        }
+        var summary = cachedVoices.slice(0, 12).map(function(v){
+          var g = classifyVoiceGender(v);
+          return (v.lang || '?') + ':' + v.name + '[' + g + ']';
+        }).join(' | ');
+        if(stEl){
+          stEl.textContent = 'Voices (' + cachedVoices.length + '): ' + summary;
+        }
+        toast(cachedVoices.length + ' TTS voices detected');
+      });
+    }
+    var bStopTest = $('btnStopTestAudio');
+    if(bStopTest){
+      bStopTest.addEventListener('click', function(){
+        stopAllAudio();
+        var mp = $('miniPlayer'); if(mp) mp.classList.add('hidden');
+        var stEl = $('testAudioStatus'); if(stEl) stEl.textContent = 'Stopped';
+      });
+    }
+    var ss = $('setSpeed'); if(ss) ss.addEventListener('change', e=>{ state.speed=parseFloat(e.target.value); save('noor_speed',e.target.value); player.playbackRate=state.speed; var spEl=$('speedSelect'); if(spEl) spEl.value=e.target.value; });
+    var srp = $('setRepeat'); if(srp) srp.addEventListener('change', e=>{ state.repeat=parseInt(e.target.value); save('noor_repeat',e.target.value); var rpEl=$('repeatSelect'); if(rpEl) rpEl.value=e.target.value; });
     var tac = $('togAutoCache'); if(tac){ tac.classList.toggle('on', state.autoCache); tac.addEventListener('click', function(){ state.autoCache=!state.autoCache; save('noor_autocache', state.autoCache?'1':'0'); this.classList.toggle('on', state.autoCache); }); }
     var tt = $('togTranslitSettings'); if(tt){ tt.classList.toggle('on', state.translit); tt.addEventListener('click', function(){ state.translit=!state.translit; save('noor_translit', state.translit?'1':'0'); this.classList.toggle('on', state.translit); if(currentSurah) renderAyahs(); }); }
     var trBox = $('trAudioLangChecks');
@@ -4909,14 +5317,15 @@ function bindEvents(){
   // lang
   function setLang(code){
     state.lang=code; save('noor_lang',code);
-    applyLang();
+    applyDefaultTranslationLanguage(state.defaultTrLang || state.trLang || 'en', { skipRender: true });
+  applyLang();
   }
   var ls = $('langSelect'); if(ls) ls.addEventListener('change', e=>setLang(e.target.value));
   var sl = $('setLang'); if(sl) sl.addEventListener('change', e=>{ setLang(e.target.value); if($('langSelect')) $('langSelect').value=e.target.value; });
   // translit toggle
   var tt = $('togTranslit'); if(tt){ tt.addEventListener('click', ()=>{ state.translit=!state.translit; save('noor_translit', state.translit?'1':'0'); tt.classList.toggle('on', state.translit); if(currentSurah) renderAyahs(); }); tt.classList.toggle('on', state.translit); }
   // tr lang
-  var tr = $('trLang'); if(tr) tr.addEventListener('change', e=>{ state.trLang=e.target.value; save('noor_trlang', e.target.value); if(currentSurah) renderAyahs(); renderAdhkar(); });
+  var tr = $('trLang'); if(tr) tr.addEventListener('change', e=>{ applyDefaultTranslationLanguage(e.target.value); });
   // search
   var qs = $('qSearch'); if(qs) qs.addEventListener('input', e=> renderSurahList(e.target.value));
   var qSort = $('qSort'); if(qSort) qSort.addEventListener('change', ()=> renderSurahList($('qSearch')?($('qSearch').value):''));
@@ -4956,7 +5365,8 @@ function bindEvents(){
     state.speed = parseFloat(localStorage.getItem('noor_speed') || '1');
     state.repeat = parseInt(localStorage.getItem('noor_repeat') || '1');
     state.translit = localStorage.getItem('noor_translit') === '1';
-    state.trLang = localStorage.getItem('noor_trlang') || 'en';
+    state.defaultTrLang = localStorage.getItem('noor_default_trlang') || localStorage.getItem('noor_trlang') || 'en';
+    state.trLang = localStorage.getItem('noor_trlang') || state.defaultTrLang || 'en';
     state.syncTrWithDisplayLang = localStorage.getItem('noor_sync_tr_disp_lang') === '1';
     state.trAudioLangs = (function(){
       try {
@@ -5929,6 +6339,24 @@ async function init(){
   renderFasting();
   renderUmrah();
   renderSurahList();
+  function resetQuranToMainList(){
+    try { player.pause(); } catch(_){}
+    isPlaying = false;
+    currentSurah = null;
+    currentAyahIndex = 0;
+    repeatCount = 0;
+    updatePlayBtn();
+    var mp = $('miniPlayer'); if(mp) mp.classList.add('hidden');
+    var qsW = $('quranSurahsWrap'), qgW = $('quranGuideWrap');
+    if(qsW) qsW.classList.remove('hidden');
+    if(qgW) qgW.classList.add('hidden');
+    var rdr = $('reader'); if(rdr) rdr.classList.add('hidden');
+    var sl = $('surahList'); if(sl) sl.classList.remove('hidden');
+    var qsi = $('qSearch'); if(qsi){ qsi.value = ''; qsi.classList.remove('hidden'); }
+    var qSortEl = $('qSort'); if(qSortEl) qSortEl.value = 'num';
+    var qFilterEl = $('qFilter'); if(qFilterEl) qFilterEl.value = 'all';
+    renderSurahList();
+  }
   document.querySelectorAll('#quranSubTabs .sub-tab').forEach(function(btn){
     btn.addEventListener('click', function(){
       document.querySelectorAll('#quranSubTabs .sub-tab').forEach(function(x){ x.classList.remove('active'); });
@@ -5937,7 +6365,11 @@ async function init(){
       var qsW = $('quranSurahsWrap'), qgW = $('quranGuideWrap');
       if(qsW) qsW.classList.toggle('hidden', isGuide);
       if(qgW) qgW.classList.toggle('hidden', !isGuide);
-      if(isGuide) renderQuranGuide();
+      if(isGuide){
+        renderQuranGuide();
+      } else {
+        resetQuranToMainList();
+      }
     });
   });
   renderInfoTab('qibla');
