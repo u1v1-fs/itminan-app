@@ -840,6 +840,42 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
   color: #1a1a1a;
   border-color: var(--gold);
 }
+.dhikr.playing {
+  background: rgba(212,175,55,.14);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(212,175,55,.32), 0 6px 18px rgba(0,0,0,.35);
+  border-radius: 10px;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.step-dua-box.playing {
+  background: rgba(212,175,55,.14);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(212,175,55,.32), 0 6px 18px rgba(0,0,0,.35);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.playing-line {
+  background: rgba(212,175,55,.16);
+  border-radius: 6px;
+  padding: 2px 6px;
+  box-shadow: inset 3px 0 0 var(--gold2);
+}
+.seq-control-bar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--bar-bg);
+  border: 1px solid rgba(212,175,55,.28);
+  box-shadow: 0 4px 14px rgba(0,0,0,.32);
+  backdrop-filter: blur(8px);
+}
 </style>
 
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Itminan%22%2C%22short_name%22%3A%22Itminan%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b1a14%22%2C%22theme_color%22%3A%22%23d4af37%22%7D">
@@ -968,6 +1004,7 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
         <button class="side-btn dh-side" data-dh="duas">Duas</button>
         <button class="side-btn dh-side" data-dh="kalima">Kalima</button>
         <button class="side-btn dh-side" data-dh="darood">Darood</button>
+        <button class="side-btn dh-side" data-dh="asmaul">Asma’ul Husna</button>
       </div>
       <div class="menu-pane">
         <div id="panel-quran" class="dh-panel card">
@@ -1034,9 +1071,12 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
           <div id="quranGuideWrap" class="hidden"></div>
         </div>
         <div id="panel-adhkar" class="dh-panel card hidden">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(212,175,55,.15);">
-            <h3 style="margin:0;padding:0;border:none;">Adhkar</h3>
+          <h3>Adhkar</h3>
+          <div class="seq-control-bar" id="adhkarControlBar" role="region" aria-label="Adhkar playback and counter controls">
+            <span id="adhkarPlayStatus" class="muted" style="font-size:11px;">Ready — Adhkar</span>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="adhkarVoiceSelect" class="play-all-voice-select" aria-label="Playback voice" title="Select voice for playback" style="background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:4px 7px;font-size:11px;max-width:140px;"></select>
+              <button type="button" class="btn-chip" id="adhkarUrModeBtn" onclick="toggleAdhkarUrMode()" title="Speak Urdu translation after each Arabic Dhikr during Play All" style="padding:5px 9px;font-size:11px;">+UR: OFF</button>
               <button type="button" class="btn-chip" id="topResetAllCountersBtn" onclick="resetAllDhikrCountersToZero()" title="Reset all counters to 0 for a fresh start">↺ Reset All (0)</button>
               <button type="button" class="btn-primary" id="topPlayAllBtn" onclick="togglePlayAllAdhkar()" style="padding:5px 11px;font-size:11px;">▶ Play All</button>
             </div>
@@ -1048,6 +1088,15 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
         </div>
         <div id="panel-duas" class="dh-panel card hidden">
           <h3>Duas</h3>
+          <div class="seq-control-bar" id="duasControlBar" role="region" aria-label="Duas sequential playback controls">
+            <span id="duasPlayStatus" class="muted" style="font-size:11px;">Ready — Tap Play All</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="duasVoiceSelect" class="play-all-voice-select" aria-label="Playback voice" title="Select voice for playback" style="background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:4px 7px;font-size:11px;max-width:140px;"></select>
+              <button type="button" class="btn-chip" id="duasEnModeBtn" onclick="toggleDuasEnMode()" title="Toggle speaking English meaning after each Arabic Dua during Play All" style="padding:5px 9px;font-size:11px;">+EN: OFF</button>
+              <button type="button" class="btn-chip" id="duasUrModeBtn" onclick="toggleDuasUrMode()" title="Toggle speaking Urdu meaning after each Arabic Dua during Play All" style="padding:5px 9px;font-size:11px;">+UR: OFF</button>
+              <button type="button" class="btn-primary" id="duasPlayAllBtn" onclick="togglePlayAllDuas()" style="padding:5px 11px;font-size:11px;">▶ Play All</button>
+            </div>
+          </div>
           <div id="duasList"></div>
         </div>
         <div id="panel-kalima" class="dh-panel card hidden">
@@ -1056,7 +1105,34 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
         </div>
         <div id="panel-darood" class="dh-panel card hidden">
           <h3>Darood (Salawat upon Prophet Muhammad ﷺ)</h3>
+          <div class="seq-control-bar" id="daroodControlBar" role="region" aria-label="Darood sequential playback controls">
+            <span id="daroodPlayStatus" class="muted" style="font-size:11px;">Ready — Tap Play All</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="daroodVoiceSelect" class="play-all-voice-select" aria-label="Playback voice" title="Select voice for playback" style="background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:4px 7px;font-size:11px;max-width:140px;"></select>
+              <button type="button" class="btn-chip" id="daroodEnModeBtn" onclick="toggleDaroodEnMode()" title="Toggle speaking English meaning after each Arabic Salawat during Play All" style="padding:5px 9px;font-size:11px;">+EN: OFF</button>
+              <button type="button" class="btn-chip" id="daroodUrModeBtn" onclick="toggleDaroodUrMode()" title="Toggle speaking Urdu meaning after each Arabic Salawat during Play All" style="padding:5px 9px;font-size:11px;">+UR: OFF</button>
+              <button type="button" class="btn-primary" id="daroodPlayAllBtn" onclick="togglePlayAllDarood()" style="padding:5px 11px;font-size:11px;">▶ Play All</button>
+            </div>
+          </div>
           <div id="daroodContent"></div>
+        </div>
+        <div id="panel-asmaul" class="dh-panel card hidden">
+          <h3>Asma’ul Husna</h3>
+          <div class="seq-control-bar" id="asmaControlBar" role="region" aria-label="Asma’ul Husna sequential playback controls">
+            <span id="asmaPlayStatus" class="muted" style="font-size:11px;">Ready — Arabic Base</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="asmaVoiceSelect" class="play-all-voice-select" aria-label="Playback voice" title="Select voice for playback" style="background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:4px 7px;font-size:11px;max-width:140px;"></select>
+              <button type="button" class="btn-chip" id="asmaTrModeBtn" onclick="toggleAsmaTrMode()" title="Optional: also speak English translation after each Arabic name during Play All" style="padding:5px 9px;font-size:11px;">+Tr: OFF</button>
+              <button type="button" class="btn-chip" id="asmaUrModeBtn" onclick="toggleAsmaUrMode()" title="Optional: also speak Urdu translation after each Arabic name during Play All" style="padding:5px 9px;font-size:11px;">+UR: OFF</button>
+              <button type="button" class="btn-primary" id="asmaPlayAllBtn" onclick="togglePlayAllAsmaul()" style="padding:5px 11px;font-size:11px;">▶ Play All (Arabic)</button>
+            </div>
+          </div>
+          <div class="sub-tabs" id="asmaulSubTabs">
+            <button type="button" class="sub-tab active" data-asmatab="allah">99 Names of Allah</button>
+            <button type="button" class="sub-tab" data-asmatab="muhammad">99 Names of Mohammed SA PUBH</button>
+          </div>
+          <input class="search" id="asmaulSearch" placeholder="Search name, transliteration, or meaning...">
+          <div id="asmaulContent"></div>
         </div>
       </div>
     </div>
@@ -1202,6 +1278,7 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
         <button class="side-btn set-side" data-set="prayer">Prayer/Calc</button>
         <button class="side-btn set-side" data-set="notif">Notifications</button>
         <button class="side-btn set-side" data-set="offline">Offline</button>
+        <button class="side-btn set-side" data-set="custom">Custom / Verify</button>
         <button class="side-btn set-side" data-set="about">About</button>
       </div>
       <div class="menu-pane">
@@ -2165,7 +2242,7 @@ function populateTtsVoiceSelect(){
     trSel.value = curTr;
     if(trSel.value !== curTr) trSel.value = 'auto';
   }
-  ['barVoiceSelect', 'mpVoiceSelect'].forEach(function(elId){
+  ['barVoiceSelect', 'mpVoiceSelect', 'adhkarVoiceSelect', 'duasVoiceSelect', 'daroodVoiceSelect', 'asmaVoiceSelect'].forEach(function(elId){
     var pSel = $(elId);
     if(pSel){
       pSel.innerHTML = allHtml;
@@ -2178,15 +2255,20 @@ function populateTtsVoiceSelect(){
           var chosen = e.target.value || 'auto';
           state.ttsVoice = chosen;
           save('noor_tts_voice', chosen);
-          if($('setTtsVoice')) $('setTtsVoice').value = chosen;
-          if($('barVoiceSelect') && $('barVoiceSelect') !== e.target) $('barVoiceSelect').value = chosen;
-          if($('mpVoiceSelect') && $('mpVoiceSelect') !== e.target) $('mpVoiceSelect').value = chosen;
+          ['setTtsVoice', 'barVoiceSelect', 'mpVoiceSelect', 'adhkarVoiceSelect', 'duasVoiceSelect', 'daroodVoiceSelect', 'asmaVoiceSelect'].forEach(function(syncId){
+            var sEl = $(syncId);
+            if(sEl && sEl !== e.target){
+              sEl.value = chosen;
+              if(sEl.value !== chosen) sEl.value = 'auto';
+            }
+          });
           if(typeof stopAllAudio === 'function'){
             stopAllAudio();
           } else {
             try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(_){}
           }
-          if(typeof toast === 'function') toast('Voice updated');
+          var txt = (e.target.options && e.target.selectedIndex >= 0) ? e.target.options[e.target.selectedIndex].text : chosen;
+          if(typeof toast === 'function') toast('Playback voice: ' + txt);
         });
       }
     }
@@ -2396,9 +2478,12 @@ function speakWithBrowser(text, langCode, preferFemale, voiceGender){
     var effectiveGender = voiceGender || presetGender || (preferFemale ? 'female' : null) || (recG !== 'auto' ? recG : (langCode !== 'ar' ? trG : 'auto'));
     var explicitVoice = null;
     if(savedTtsVoice && savedTtsVoice !== 'auto' && !savedTtsVoice.startsWith('preset:')){
+      var want = String(savedTtsVoice).trim().toLowerCase();
       explicitVoice = (cachedVoices || []).find(function(v){
-        var lbl = v.name + (v.lang ? ' [' + v.lang + ']' : '');
-        return v.voiceURI === savedTtsVoice || v.name === savedTtsVoice || lbl === savedTtsVoice;
+        var lbl = (v.name + (v.lang ? ' [' + v.lang + ']' : '')).trim().toLowerCase();
+        var uri = String(v.voiceURI || '').trim().toLowerCase();
+        var nm = String(v.name || '').trim().toLowerCase();
+        return (uri && uri === want) || (nm && nm === want) || (lbl && lbl === want);
       }) || null;
     }
     var pool = matching.length ? matching : cachedVoices;
@@ -2408,6 +2493,9 @@ function speakWithBrowser(text, langCode, preferFemale, voiceGender){
     }
     if(chosen){
       u.voice = chosen;
+      if(explicitVoice && chosen.lang){
+        u.lang = chosen.lang;
+      }
     }
     var gKind = classifyVoiceGender(chosen);
     if(effectiveGender === 'female'){
@@ -3309,6 +3397,7 @@ const CATS = [
   {id:'issue_duas', label:'📌 By Issue (Chart)'},
   {id:'weekly_chart', label:'📅 Weekly Chart'},
   {id:'daily', label:'Daily Sunnah'},
+  {id:'miscellaneous', label:'✨ Miscellaneous'},
 ];
 
 const WEEKLY_CHART_ADHKAR = [
@@ -3670,7 +3759,7 @@ async function renderDuas(){
   var activeLang = state.trLang || state.lang || 'en';
   var isLiveLang = ['kn','te','fr','dz','ber','da'].indexOf(activeLang) !== -1;
   var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;"><span class="muted">'+allDuas.length+' Authentic Duas</span><a href="https://sunnah.com/hisn" target="_blank" rel="noopener" class="btn-chip">📚 Hisn al-Muslim on Sunnah.com ↗</a></div>';
-  html += allDuas.map(d=>{
+  html += allDuas.map((d, idx)=>{
     var cacheKey = isLiveLang && d.en ? (activeLang + '|' + d.en.slice(0,80)) : '';
     var cachedTxt = cacheKey && trMemCache[cacheKey] ? trMemCache[cacheKey] : '';
     var safeEn = (d.en || '').replace(/"/g, '&quot;');
@@ -3678,11 +3767,11 @@ async function renderDuas(){
     if(activeLang === 'hi' && d.hi) extraNative = `<div class="tr" style="color:var(--gold2);font-size:12px;">${d.hi}</div>`;
     else if(activeLang === 'ta' && d.ta) extraNative = `<div class="tr" style="color:var(--gold2);font-size:12px;">${d.ta}</div>`;
     else if(isLiveLang && d.en) extraNative = `<div class="tr ${!cachedTxt ? 'live-tr' : ''}" style="color:var(--gold2);font-size:12px;" data-trlang="${activeLang}" data-en="${safeEn}">${cachedTxt || 'Loading translation...'}</div>`;
-    return `<div class="dhikr">
+    return `<div class="dhikr" id="duaCard_${idx}">
       ${d.title?`<div style="color:var(--gold2);font-size:12px;font-weight:700;margin-bottom:4px;">${d.title}</div>`:''}
-      <div class="ar">${d.ar}</div>
+      <div class="ar dua-line-ar">${d.ar}</div>
       <div class="translit" style="font-style:italic;color:var(--muted);font-size:12px;margin-bottom:4px;">${d.translit}</div>
-      <div class="tr">${d.en}</div>
+      <div class="tr dua-line-en">${d.en}</div>
       ${extraNative}
       ${d.ur?`<div class="ur-tr">${d.ur}</div>`:''}
       <div class="src">${d.src} ${d.url?`· <a href="${d.url}" target="_blank" rel="noopener" style="color:var(--gold2);">Verify ↗</a>`:''}</div>
@@ -3691,12 +3780,127 @@ async function renderDuas(){
       </div>
     </div>`;
   }).join('');
+  window._allDuasList = allDuas;
   el.innerHTML = html;
   if(isLiveLang) hydrateLiveTranslations(activeLang);
 }
+
+var _duasPlayAllActive = false;
+var _duasPlayAllRunId = 0;
+var _duasIncludeEn = false;
+var _duasIncludeUr = false;
+
+function toggleDuasUrMode(){
+  _duasIncludeUr = !_duasIncludeUr;
+  var b = $('duasUrModeBtn');
+  if(b){
+    b.textContent = _duasIncludeUr ? '+UR: ON' : '+UR: OFF';
+    b.classList.toggle('active-tr', _duasIncludeUr);
+  }
+}
+window.toggleDuasUrMode = toggleDuasUrMode;
+
+function toggleDuasEnMode(){
+  _duasIncludeEn = !_duasIncludeEn;
+  var b = $('duasEnModeBtn');
+  if(b){
+    b.textContent = _duasIncludeEn ? '+EN: ON' : '+EN: OFF';
+    b.classList.toggle('active-tr', _duasIncludeEn);
+  }
+}
+window.toggleDuasEnMode = toggleDuasEnMode;
+
+function clearDuasFocus(){
+  document.querySelectorAll('#duasList .dhikr.playing').forEach(function(el){
+    el.classList.remove('playing');
+  });
+  document.querySelectorAll('#duasList .playing-line').forEach(function(el){
+    el.classList.remove('playing-line');
+  });
+}
+
+function focusDuaLine(idx, lineSelector){
+  clearDuasFocus();
+  var card = $('duaCard_' + idx);
+  if(!card) return;
+  card.classList.add('playing');
+  if(lineSelector){
+    var lineEl = card.querySelector(lineSelector);
+    if(lineEl) lineEl.classList.add('playing-line');
+  }
+  try {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch(_){}
+}
+
+function stopDuasPlayAll(){
+  _duasPlayAllActive = false;
+  _duasPlayAllRunId++;
+  clearDuasFocus();
+  var btn = $('duasPlayAllBtn');
+  if(btn){ btn.textContent = '▶ Play All'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+  var st = $('duasPlayStatus');
+  if(st) st.textContent = 'Ready — Tap Play All';
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+}
+window.stopDuasPlayAll = stopDuasPlayAll;
+
+async function togglePlayAllDuas(){
+  if(_duasPlayAllActive){
+    stopDuasPlayAll();
+    return;
+  }
+  if(!Array.isArray(window._allDuasList) || !window._allDuasList.length){
+    await renderDuas();
+  }
+  var list = Array.isArray(window._allDuasList) ? window._allDuasList : [];
+  if(!list.length){
+    toast('No Duas available to play.');
+    return;
+  }
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+  _duasPlayAllActive = true;
+  var runId = ++_duasPlayAllRunId;
+  var btn = $('duasPlayAllBtn');
+  var st = $('duasPlayStatus');
+  if(btn){ btn.textContent = '■ Stop'; btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
+
+  for(var i = 0; i < list.length; i++){
+    if(!_duasPlayAllActive || runId !== _duasPlayAllRunId) break;
+    var d = list[i] || {};
+    var shortTitle = d.title || ('Dua ' + (i + 1));
+    if(st) st.textContent = 'Playing ' + (i + 1) + ' / ' + list.length + ': ' + shortTitle;
+    try {
+      if(d.ar){
+        focusDuaLine(i, '.dua-line-ar');
+        await playTTS(d.ar, 'ar', { keepSession: (i > 0) });
+        if(!_duasPlayAllActive || runId !== _duasPlayAllRunId) break;
+      }
+      if(_duasIncludeEn && d.en){
+        focusDuaLine(i, '.dua-line-en');
+        await playTTS(d.en, 'en', { keepSession: true });
+        if(!_duasPlayAllActive || runId !== _duasPlayAllRunId) break;
+      }
+      if(_duasIncludeUr && d.ur){
+        focusDuaLine(i, '.ur-tr');
+        await playTTS(d.ur, 'ur', { keepSession: true });
+        if(!_duasPlayAllActive || runId !== _duasPlayAllRunId) break;
+      }
+    } catch(_){}
+    if(!_duasPlayAllActive || runId !== _duasPlayAllRunId) break;
+    await new Promise(function(res){ setTimeout(res, 240); });
+  }
+  if(runId === _duasPlayAllRunId){
+    _duasPlayAllActive = false;
+    clearDuasFocus();
+    if(btn){ btn.textContent = '▶ Play All'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+    if(st) st.textContent = 'Ready — Tap Play All';
+  }
+}
+window.togglePlayAllDuas = togglePlayAllDuas;
 async function renderAdhkar(filter=''){
   await loadAdhkar();
-  var sourceItems = (currentCat === 'issue_duas') ? ISSUE_SUPPLICATIONS : ((currentCat === 'weekly_chart') ? WEEKLY_CHART_ADHKAR : adhkarData.adhkar);
+  var sourceItems = (currentCat === 'issue_duas') ? ISSUE_SUPPLICATIONS : ((currentCat === 'weekly_chart') ? WEEKLY_CHART_ADHKAR : ((currentCat === 'miscellaneous') ? getCustomMiscAdhkar() : adhkarData.adhkar));
   var list = sourceItems.filter(d=>d.cat===currentCat);
   if(filter) list = list.filter(d=> ((d.issue||'')+d.en+d.ar+d.translit+(d.ur||'')).toLowerCase().includes(filter.toLowerCase()));
   var html='';
@@ -3737,10 +3941,13 @@ async function renderAdhkar(filter=''){
       <div class="progress"><div style="width:${pct}%"></div></div>
     </div>`;
   });
+  var miscNote = (currentCat === 'miscellaneous')
+    ? `<div class="section-card" style="margin-bottom:10px;border-left:3px solid var(--gold);"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><div style="font-size:12px;font-weight:700;color:var(--gold2);">✨ Miscellaneous Ayahs &amp; Custom Adhkar</div><button type="button" class="btn-chip" onclick="switchView('settings'); setTimeout(()=>{var s=document.querySelector('.set-side[data-set=custom]'); if(s) s.click();},60);" style="padding:4px 10px;font-size:11px;">+ Add / Verify in Settings</button></div><div class="muted" style="line-height:1.45;">Validated Ayahs and Adhkar with custom target counts and reference citations added via <strong>Settings → Custom / Verify</strong>.</div></div>`
+    : '';
   var chartNote = (currentCat === 'weekly_chart')
     ? `<div class="section-card" style="margin-bottom:10px;border-left:3px solid var(--gold);"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><div style="font-size:12px;font-weight:700;color:var(--gold2);">📅 Weekly Dhikr Chart (Day-by-Day Counters)</div><button type="button" class="btn-chip" id="resetWeeklyChartBtn" onclick="resetAllWeeklyChartCounters()" style="padding:4px 10px;font-size:11px;">↺ Reset All 7</button></div><div class="muted" style="line-height:1.45;">All seven Arabic phrases are authentic remembrances. While sending Salawat on Friday is encouraged in the Sunnah, assigning specific repetition counts (700x, 300x, 200x, 400x, 1000x, 300x, 100x) to particular days comes from a popular devotional chart rather than a fixed Sahih Hadith quota.</div></div>`
     : '';
-  $('adhkarList').innerHTML = chartNote + html;
+  $('adhkarList').innerHTML = miscNote + chartNote + html;
   if(['kn','te','fr','dz','ber','da'].indexOf(state.trLang) !== -1) hydrateLiveTranslations(state.trLang);
 }
 
@@ -3799,6 +4006,8 @@ var _playAllState = { active: false, token: 0 };
 function stopPlayAllAdhkar(){
   _playAllState.active = false;
   _playAllState.token++;
+  document.querySelectorAll('#adhkarList .dhikr.playing').forEach(function(el){ el.classList.remove('playing'); });
+  document.querySelectorAll('#adhkarList .playing-line').forEach(function(el){ el.classList.remove('playing-line'); });
   var btn = $('topPlayAllBtn');
   if(btn) btn.textContent = '▶ Play All';
 }
@@ -3846,7 +4055,9 @@ async function togglePlayAllAdhkar(){
     ? (typeof ISSUE_SUPPLICATIONS !== 'undefined' ? ISSUE_SUPPLICATIONS : [])
     : ((currentCat === 'weekly_chart')
       ? (typeof WEEKLY_CHART_ADHKAR !== 'undefined' ? WEEKLY_CHART_ADHKAR : [])
-      : ((typeof adhkarData !== 'undefined' && adhkarData && Array.isArray(adhkarData.adhkar)) ? adhkarData.adhkar : []));
+      : ((currentCat === 'miscellaneous')
+        ? getCustomMiscAdhkar()
+        : ((typeof adhkarData !== 'undefined' && adhkarData && Array.isArray(adhkarData.adhkar)) ? adhkarData.adhkar : [])));
   var items = sourceItems.filter(function(d){ return d && d.cat === currentCat; });
   var qVal = ($('dSearch') && $('dSearch').value) ? $('dSearch').value.trim().toLowerCase() : '';
   if(qVal){
@@ -3875,11 +4086,30 @@ async function togglePlayAllAdhkar(){
       if(!_playAllState.active || _playAllState.token !== myToken) break;
       var label = 'Play All (' + (idx + 1) + '/' + items.length + (reps > 1 ? ' · ' + r + '/' + reps : '') + ')';
       if(typeof showMiniPlayer === 'function') showMiniPlayer(label);
-      if(typeof playSingleLoopArabicPass === 'function'){
-        await playSingleLoopArabicPass(arText, label, myToken);
-      } else if(typeof playTTS === 'function'){
-        await playTTS(arText, 'ar');
-      }
+      try {
+        var hostEl = item.id != null ? $('cnt_' + item.id) : null;
+        var cardEl = hostEl ? hostEl.closest('.dhikr') : null;
+        document.querySelectorAll('#adhkarList .dhikr.playing').forEach(function(el){ el.classList.remove('playing'); });
+        document.querySelectorAll('#adhkarList .playing-line').forEach(function(el){ el.classList.remove('playing-line'); });
+        if(cardEl){
+          cardEl.classList.add('playing');
+          var arLine = cardEl.querySelector('.ar');
+          if(arLine) arLine.classList.add('playing-line');
+          try { cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
+        }
+        if(typeof setMiniStatus === 'function') setMiniStatus(label);
+        if(typeof playTTS === 'function'){
+          await playTTS(arText, 'ar', { keepSession: (idx > 0 || r > 1) });
+          if(_playAllState.active && _playAllState.token === myToken && window._adhkarIncludeUr && item.ur){
+            if(cardEl){
+              document.querySelectorAll('#adhkarList .playing-line').forEach(function(el){ el.classList.remove('playing-line'); });
+              var urLine = cardEl.querySelector('.ur-tr');
+              if(urLine) urLine.classList.add('playing-line');
+            }
+            await playTTS(item.ur, 'ur', { keepSession: true });
+          }
+        }
+      } catch(_){}
       if(!_playAllState.active || _playAllState.token !== myToken) break;
       if(item.id != null){
         incrementDhikrCounter(item.id);
@@ -4568,8 +4798,1667 @@ const HADITHS = [
  {ar:'أَحَبُّ الأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ', en:'“The most beloved deeds to Allah are the most consistent ones, even if they are small.”', ur:'"اللہ کے نزدیک سب سے محبوب عمل وہ ہے جو ہمیشگی کے ساتھ کیا جائے، خواہ تھوڑا ہی ہو۔"', narrator:'Aisha (RA)', source:'Sahih al-Bukhari 6464', grade:'Sahih', tag:'daily', url:'https://sunnah.com/bukhari:6464'},
  {ar:'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ', en:'“Whoever treads a path in search of knowledge, Allah makes easy for him a path to Paradise.”', ur:'"جو شخص علم کی تلاش میں کسی راستے پر چلتا ہے، اللہ اس کے لیے جنت کا راستہ آسان کر دیتا ہے۔"', narrator:'Abu Hurairah (RA)', source:'Sahih Muslim 2699', grade:'Sahih', tag:'daily', url:'https://sunnah.com/muslim:2699a'},
  {ar:'مَنْ قَرَأَ آيَةَ الْكُرْسِيِّ دُبُرَ كُلِّ صَلَاةٍ مَكْتُوبَةٍ لَمْ يَمْنَعْهُ مِنْ دُخُولِ الْجَنَّةِ إِلَّا الْمَوْتُ', en:'“Whoever recites Ayatul Kursi after every obligatory prayer, nothing prevents him from entering Paradise except death.”', ur:'"جو شخص ہر فرض نماز کے بعد آیت الکرسی پڑھے، اسے موت کے سوا جنت میں داخل ہونے سے کوئی چیز نہیں روکے گی۔"', narrator:'Abu Umamah (RA)', source:'Sunan an-Nasa\'i al-Kubra 9928', grade:'Sahih', tag:'daily', url:'https://sunnah.com/search?q=ayat+al+kursi+obligatory+prayer'}
+ ,{ar:'مَنْ يُرِدِ اللَّهُ بِهِ خَيْرًا يُفَقِّهْهُ فِي الدِّينِ', en:'“Whomever Allah intends good for, He gives him understanding of the religion.”', ur:'"اللہ جس کے ساتھ بھلائی کا ارادہ فرماتا ہے، اسے دین کی سمجھ عطا فرماتا ہے۔"', narrator:'Mu\'awiyah ibn Abi Sufyan (RA)', source:'Sahih al-Bukhari 71 · Sahih Muslim 1037', grade:'Sahih', tag:'daily', url:'https://sunnah.com/bukhari:71'}
+ ,{ar:'الدِّينُ النَّصِيحَةُ', en:'“Religion is sincerity and good counsel.”', ur:'"دین خیر خواہی کا نام ہے۔"', narrator:'Tamim ad-Dari (RA)', source:'Sahih Muslim 55', grade:'Sahih', tag:'daily', url:'https://sunnah.com/muslim:55'}
+ ,{ar:'أَقْرَبُ مَا يَكُونُ الْعَبْدُ مِنْ رَبِّهِ وَهُوَ سَاجِدٌ فَأَكْثِرُوا الدُّعَاءَ', en:'“The closest a servant is to his Lord is when he is in prostration (Sujud), so increase your supplications therein.”', ur:'"بندہ اپنے رب کے سب سے زیادہ قریب سجدے کی حالت میں ہوتا ہے، پس تم اس میں کثرت سے دعا کرو۔"', narrator:'Abu Hurairah (RA)', source:'Sahih Muslim 482', grade:'Sahih', tag:'daily', url:'https://sunnah.com/muslim:482'}
+ ,{ar:'مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ خَرَجَتْ خَطَايَاهُ مِنْ جَسَدِهِ', en:'“Whoever performs ablution (Wudu) and perfects it, his sins depart from his body.”', ur:'"جو شخص اچھی طرح وضو کرے، اس کے گناہ اس کے جسم سے نکل جاتے ہیں۔"', narrator:'Uthman ibn Affan (RA)', source:'Sahih Muslim 245', grade:'Sahih', tag:'daily', url:'https://sunnah.com/muslim:245'}
+ ,{ar:'إِنَّ اللَّهَ جَمِيلٌ يُحِبُّ الْجَمَالَ', en:'“Indeed, Allah is Beautiful and loves beauty.”', ur:'"بے شک اللہ جمیل ہے اور خوبصورتی کو پسند فرماتا ہے۔"', narrator:'Abdullah ibn Mas\'ud (RA)', source:'Sahih Muslim 91', grade:'Sahih', tag:'daily', url:'https://sunnah.com/muslim:91'}
+ ,{ar:'مَنْ صَلَّى عَلَيَّ صَلَاةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْرًا', en:'“Whoever sends blessings (Salawat) upon me once, Allah sends blessings upon him tenfold.”', ur:'"جو شخص مجھ پر ایک بار درود بھیجتا ہے، اللہ اس پر دس رحمتیں نازل فرماتا ہے۔"', narrator:'Abu Hurairah (RA)', source:'Sahih Muslim 408', grade:'Sahih', tag:'friday', url:'https://sunnah.com/muslim:408'}
+ ,{ar:'لِلصَّائِمِ فَرْحَتَانِ يَفْرَحُهُمَا: إِذَا أَفْطَرَ فَرِحَ، وَإِذَا لَقِيَ رَبَّهُ فَرِحَ بِصَوْمِهِ', en:'“The fasting person has two joys: joy when breaking the fast, and joy when meeting his Lord because of his fast.”', ur:'"روزہ دار کے لیے دو خوشیاں ہیں: ایک افطار کے وقت اور ایک اپنے رب سے ملنے کے وقت۔"', narrator:'Abu Hurairah (RA)', source:'Sahih al-Bukhari 1904 · Sahih Muslim 1151', grade:'Sahih', tag:'ramadan', url:'https://sunnah.com/bukhari:1904'}
+
 ];
 var _hadithOffset = 0;
+
+// ---------- Custom Hadith & Miscellaneous Ayah/Dhikr (Settings Validator) ----------
+const CANONICAL_SOURCES_RE = /(bukhari|muslim|tirmidhi|dawud|nasa'?i|majah|muwatta|ahmad|darimi|hakim|bayhaqi|riyad|nawawi|hisn|qur'?an|surah|ayah|\b\d{1,3}\s*:\s*\d{1,3}\b)/i;
+
+function evaluateReferenceSource(src){
+  var clean = String(src || '').trim();
+  if(!clean) return { valid: false, verified: false, label: 'Missing Reference Source', url: 'https://sunnah.com' };
+  var hasCanonical = CANONICAL_SOURCES_RE.test(clean);
+  var hasNumber = /\d+/.test(clean);
+  var isQuran = /(qur'?an|surah|ayah|\b\d{1,3}\s*:\s*\d{1,3}\b)/i.test(clean);
+  var url = isQuran
+    ? ('https://quran.com/search?q=' + encodeURIComponent(clean))
+    : ('https://sunnah.com/search?q=' + encodeURIComponent(clean));
+  if(hasCanonical && hasNumber){
+    return { valid: true, verified: true, label: 'Verified Source (' + clean + ')', url: url };
+  }
+  if(hasCanonical){
+    return { valid: true, verified: true, label: 'Canonical Collection (' + clean + ')', url: url };
+  }
+  return { valid: true, verified: false, label: 'Custom Source (Verify Citation: ' + clean + ')', url: url };
+}
+
+function getCustomHadiths(){
+  try {
+    var raw = localStorage.getItem('noor_custom_hadiths');
+    var arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch(_){ return []; }
+}
+
+function saveCustomHadiths(arr){
+  try { localStorage.setItem('noor_custom_hadiths', JSON.stringify(arr || [])); } catch(_){}
+}
+
+(function hydrateCustomHadithsOnLoad(){
+  var customs = getCustomHadiths();
+  customs.forEach(function(item){
+    if(item && item.en && !HADITHS.some(function(h){ return h.en === item.en && h.source === item.source; })){
+      HADITHS.push(item);
+    }
+  });
+})();
+
+const DEFAULT_MISC_ADHKAR = [
+  {
+    id: 'misc_default_1',
+    cat: 'miscellaneous',
+    issue: 'Comprehensive Praise & Glorification (100x)',
+    ar: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ',
+    translit: 'SubhanAllahi wa bi-hamdihi, SubhanAllahil-Azim',
+    en: 'Glory and praise be to Allah, Glory be to Allah the Supreme.',
+    ur: 'اللہ پاک ہے اپنی تعریف کے ساتھ، اللہ عظمت والا پاک ہے۔',
+    count: 100,
+    src: 'Sahih al-Bukhari 6406 · Sahih Muslim 2694 (Verified Reference)',
+    virtue: 'Two phrases light on the tongue, heavy on the Scales of good deeds, and beloved to the Most Merciful.'
+  }
+];
+
+function getCustomMiscAdhkar(){
+  try {
+    var raw = localStorage.getItem('noor_custom_misc_adhkar');
+    if(raw === null) return DEFAULT_MISC_ADHKAR.slice();
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch(_){ return DEFAULT_MISC_ADHKAR.slice(); }
+}
+
+function saveCustomMiscAdhkar(arr){
+  try { localStorage.setItem('noor_custom_misc_adhkar', JSON.stringify(arr || [])); } catch(_){}
+}
+
+// ---------- Asma’ul Husna (99 Names of Allah & 99 Names of Prophet Muhammad ﷺ) ----------
+const NAMES_OF_ALLAH_99 = [
+  {
+    "n": 1,
+    "ar": "الرَّحْمٰنُ",
+    "name": "Ar-Rahman",
+    "en": "The Most Gracious",
+    "ur": "بڑا مہربان"
+  },
+  {
+    "n": 2,
+    "ar": "الرَّحِيمُ",
+    "name": "Ar-Rahim",
+    "en": "The Most Merciful",
+    "ur": "نہایت رحم والا"
+  },
+  {
+    "n": 3,
+    "ar": "الْمَلِكُ",
+    "name": "Al-Malik",
+    "en": "The Sovereign / King",
+    "ur": "حقیقی بادشاہ"
+  },
+  {
+    "n": 4,
+    "ar": "الْقُدُّوسُ",
+    "name": "Al-Quddus",
+    "en": "The Most Pure / Holy",
+    "ur": "نہایت پاک"
+  },
+  {
+    "n": 5,
+    "ar": "السَّلَامُ",
+    "name": "As-Salam",
+    "en": "The Source of Peace",
+    "ur": "سلامتی دینے والا"
+  },
+  {
+    "n": 6,
+    "ar": "الْمُؤْمِنُ",
+    "name": "Al-Mu'min",
+    "en": "The Granter of Security & Faith",
+    "ur": "امن دینے والا"
+  },
+  {
+    "n": 7,
+    "ar": "الْمُهَيْمِنُ",
+    "name": "Al-Muhaymin",
+    "en": "The Guardian / Controller",
+    "ur": "نگہبان"
+  },
+  {
+    "n": 8,
+    "ar": "الْعَزِيزُ",
+    "name": "Al-Aziz",
+    "en": "The Almighty / Invincible",
+    "ur": "زبردست غالب"
+  },
+  {
+    "n": 9,
+    "ar": "الْجَبَّارُ",
+    "name": "Al-Jabbar",
+    "en": "The Compeller / Restorer",
+    "ur": "بڑی عظمت والا"
+  },
+  {
+    "n": 10,
+    "ar": "الْمُتَكَبِّرُ",
+    "name": "Al-Mutakabbir",
+    "en": "The Supreme / Majestic",
+    "ur": "بڑائی والا"
+  },
+  {
+    "n": 11,
+    "ar": "الْخَالِقُ",
+    "name": "Al-Khaliq",
+    "en": "The Creator",
+    "ur": "پیدا کرنے والا"
+  },
+  {
+    "n": 12,
+    "ar": "الْبَارِئُ",
+    "name": "Al-Bari",
+    "en": "The Maker / Evolver",
+    "ur": "بنانے والا"
+  },
+  {
+    "n": 13,
+    "ar": "الْمُصَوِّرُ",
+    "name": "Al-Musawwir",
+    "en": "The Fashioner of Forms",
+    "ur": "صورت بنانے والا"
+  },
+  {
+    "n": 14,
+    "ar": "الْغَفَّارُ",
+    "name": "Al-Ghaffar",
+    "en": "The Ever-Forgiving",
+    "ur": "بڑا بخشنے والا"
+  },
+  {
+    "n": 15,
+    "ar": "الْقَهَّارُ",
+    "name": "Al-Qahhar",
+    "en": "The Subduer",
+    "ur": "سب پر غالب"
+  },
+  {
+    "n": 16,
+    "ar": "الْوَهَّابُ",
+    "name": "Al-Wahhab",
+    "en": "The Bestower of Gifts",
+    "ur": "بے حساب عطا کرنے والا"
+  },
+  {
+    "n": 17,
+    "ar": "الرَّزَّاقُ",
+    "name": "Ar-Razzaq",
+    "en": "The Provider of Sustenance",
+    "ur": "رزق دینے والا"
+  },
+  {
+    "n": 18,
+    "ar": "الْفَتَّاحُ",
+    "name": "Al-Fattah",
+    "en": "The Opener / Judge",
+    "ur": "کھولنے والا"
+  },
+  {
+    "n": 19,
+    "ar": "الْعَلِيمُ",
+    "name": "Al-Alim",
+    "en": "The All-Knowing",
+    "ur": "سب کچھ جاننے والا"
+  },
+  {
+    "n": 20,
+    "ar": "الْقَابِضُ",
+    "name": "Al-Qabid",
+    "en": "The Withholder / Constrictor",
+    "ur": "قبض کرنے والا"
+  },
+  {
+    "n": 21,
+    "ar": "الْبَاسِطُ",
+    "name": "Al-Basit",
+    "en": "The Expander",
+    "ur": "کشادہ کرنے والا"
+  },
+  {
+    "n": 22,
+    "ar": "الْخَافِضُ",
+    "name": "Al-Khafid",
+    "en": "The Abaser",
+    "ur": "پست کرنے والا"
+  },
+  {
+    "n": 23,
+    "ar": "الرَّافِعُ",
+    "name": "Ar-Rafi",
+    "en": "The Exalter",
+    "ur": "بلند کرنے والا"
+  },
+  {
+    "n": 24,
+    "ar": "الْمُعِزُّ",
+    "name": "Al-Mu'izz",
+    "en": "The Giver of Honor",
+    "ur": "عزت دینے والا"
+  },
+  {
+    "n": 25,
+    "ar": "الْمُذِلُّ",
+    "name": "Al-Mudhill",
+    "en": "The Giver of Dishonor",
+    "ur": "ذلت دینے والا"
+  },
+  {
+    "n": 26,
+    "ar": "السَّمِيعُ",
+    "name": "As-Sami",
+    "en": "The All-Hearing",
+    "ur": "سب کچھ سننے والا"
+  },
+  {
+    "n": 27,
+    "ar": "الْبَصِيرُ",
+    "name": "Al-Basir",
+    "en": "The All-Seeing",
+    "ur": "سب کچھ دیکھنے والا"
+  },
+  {
+    "n": 28,
+    "ar": "الْحَكَمُ",
+    "name": "Al-Hakam",
+    "en": "The Ultimate Judge",
+    "ur": "حکم کرنے والا"
+  },
+  {
+    "n": 29,
+    "ar": "الْعَدْلُ",
+    "name": "Al-Adl",
+    "en": "The Utterly Just",
+    "ur": "انصاف کرنے والا"
+  },
+  {
+    "n": 30,
+    "ar": "اللَّطِيفُ",
+    "name": "Al-Latif",
+    "en": "The Subtle / Most Gentle",
+    "ur": "مہربان و باریک بین"
+  },
+  {
+    "n": 31,
+    "ar": "الْخَبِيرُ",
+    "name": "Al-Khabir",
+    "en": "The All-Aware",
+    "ur": "باخبر"
+  },
+  {
+    "n": 32,
+    "ar": "الْحَلِيمُ",
+    "name": "Al-Halim",
+    "en": "The Forbearing",
+    "ur": "بردبار"
+  },
+  {
+    "n": 33,
+    "ar": "الْعَظِيمُ",
+    "name": "Al-Azim",
+    "en": "The Magnificent",
+    "ur": "عظمت والا"
+  },
+  {
+    "n": 34,
+    "ar": "الْغَفُورُ",
+    "name": "Al-Ghafur",
+    "en": "The All-Forgiving",
+    "ur": "بخشنے والا"
+  },
+  {
+    "n": 35,
+    "ar": "الشَّكُورُ",
+    "name": "Ash-Shakur",
+    "en": "The Most Appreciative",
+    "ur": "قدر دان"
+  },
+  {
+    "n": 36,
+    "ar": "الْعَلِيُّ",
+    "name": "Al-Ali",
+    "en": "The Most High",
+    "ur": "بلند تر"
+  },
+  {
+    "n": 37,
+    "ar": "الْكَبِيرُ",
+    "name": "Al-Kabir",
+    "en": "The Most Great",
+    "ur": "سب سے بڑا"
+  },
+  {
+    "n": 38,
+    "ar": "الْحَفِيظُ",
+    "name": "Al-Hafiz",
+    "en": "The Preserver",
+    "ur": "حفاظت کرنے والا"
+  },
+  {
+    "n": 39,
+    "ar": "الْمُقِيتُ",
+    "name": "Al-Muqit",
+    "en": "The Sustainer / Nourisher",
+    "ur": "قوت دینے والا"
+  },
+  {
+    "n": 40,
+    "ar": "الْحَسِيبُ",
+    "name": "Al-Hasib",
+    "en": "The Reckoner / Sufficient",
+    "ur": "کافی و حساب لینے والا"
+  },
+  {
+    "n": 41,
+    "ar": "الْجَلِيلُ",
+    "name": "Al-Jalil",
+    "en": "The Majestic",
+    "ur": "جلال والا"
+  },
+  {
+    "n": 42,
+    "ar": "الْكَرِيمُ",
+    "name": "Al-Karim",
+    "en": "The Most Generous",
+    "ur": "بڑا کرم والا"
+  },
+  {
+    "n": 43,
+    "ar": "الرَّقِيبُ",
+    "name": "Ar-Raqib",
+    "en": "The Watchful",
+    "ur": "نگہداشت کرنے والا"
+  },
+  {
+    "n": 44,
+    "ar": "الْمُجِيبُ",
+    "name": "Al-Mujib",
+    "en": "The Responsive",
+    "ur": "دعا قبول کرنے والا"
+  },
+  {
+    "n": 45,
+    "ar": "الْوَاسِعُ",
+    "name": "Al-Wasi",
+    "en": "The All-Encompassing",
+    "ur": "وسعت والا"
+  },
+  {
+    "n": 46,
+    "ar": "الْحَكِيمُ",
+    "name": "Al-Hakim",
+    "en": "The All-Wise",
+    "ur": "حکمت والا"
+  },
+  {
+    "n": 47,
+    "ar": "الْوَدُودُ",
+    "name": "Al-Wadud",
+    "en": "The Most Loving",
+    "ur": "محبت کرنے والا"
+  },
+  {
+    "n": 48,
+    "ar": "الْمَجِيدُ",
+    "name": "Al-Majid",
+    "en": "The Most Glorious",
+    "ur": "بزرگی والا"
+  },
+  {
+    "n": 49,
+    "ar": "الْبَاعِثُ",
+    "name": "Al-Ba'ith",
+    "en": "The Resurrecter",
+    "ur": "اٹھانے والا"
+  },
+  {
+    "n": 50,
+    "ar": "الشَّهِيدُ",
+    "name": "Ash-Shahid",
+    "en": "The Witness",
+    "ur": "حاضر و گواہ"
+  },
+  {
+    "n": 51,
+    "ar": "الْحَقُّ",
+    "name": "Al-Haqq",
+    "en": "The Ultimate Truth",
+    "ur": "سچا مالک"
+  },
+  {
+    "n": 52,
+    "ar": "الْوَكِيلُ",
+    "name": "Al-Wakil",
+    "en": "The Trustee / Disposer",
+    "ur": "کارساز"
+  },
+  {
+    "n": 53,
+    "ar": "الْقَوِيُّ",
+    "name": "Al-Qawiyy",
+    "en": "The Most Strong",
+    "ur": "قوت والا"
+  },
+  {
+    "n": 54,
+    "ar": "الْمَتِينُ",
+    "name": "Al-Matin",
+    "en": "The Firm One",
+    "ur": "مضبوط"
+  },
+  {
+    "n": 55,
+    "ar": "الْوَلِيُّ",
+    "name": "Al-Waliyy",
+    "en": "The Protecting Friend",
+    "ur": "دوست و کارساز"
+  },
+  {
+    "n": 56,
+    "ar": "الْحَمِيدُ",
+    "name": "Al-Hamid",
+    "en": "The Praiseworthy",
+    "ur": "قابل تعریف"
+  },
+  {
+    "n": 57,
+    "ar": "الْمُحْصِي",
+    "name": "Al-Muhsi",
+    "en": "The Counter of All Things",
+    "ur": "گننے والا"
+  },
+  {
+    "n": 58,
+    "ar": "الْمُبْدِئُ",
+    "name": "Al-Mubdi",
+    "en": "The Originator",
+    "ur": "پہلی بار پیدا کرنے والا"
+  },
+  {
+    "n": 59,
+    "ar": "الْمُعِيدُ",
+    "name": "Al-Mu'id",
+    "en": "The Restorer",
+    "ur": "دوبارہ پیدا کرنے والا"
+  },
+  {
+    "n": 60,
+    "ar": "الْمُحْيِي",
+    "name": "Al-Muhyi",
+    "en": "The Giver of Life",
+    "ur": "زندہ کرنے والا"
+  },
+  {
+    "n": 61,
+    "ar": "الْمُمِيتُ",
+    "name": "Al-Mumit",
+    "en": "The Taker of Life",
+    "ur": "موت دینے والا"
+  },
+  {
+    "n": 62,
+    "ar": "الْحَيُّ",
+    "name": "Al-Hayy",
+    "en": "The Ever-Living",
+    "ur": "ہمیشہ زندہ"
+  },
+  {
+    "n": 63,
+    "ar": "الْقَيُّومُ",
+    "name": "Al-Qayyum",
+    "en": "The Self-Subsisting",
+    "ur": "سب کو قائم رکھنے والا"
+  },
+  {
+    "n": 64,
+    "ar": "الْوَاجِدُ",
+    "name": "Al-Wajid",
+    "en": "The Finder / Resourceful",
+    "ur": "پانے والا"
+  },
+  {
+    "n": 65,
+    "ar": "الْمَاجِدُ",
+    "name": "Al-Majid",
+    "en": "The Noble",
+    "ur": "بزرگ و شان والا"
+  },
+  {
+    "n": 66,
+    "ar": "الْوَاحِدُ",
+    "name": "Al-Wahid",
+    "en": "The One",
+    "ur": "اکیلا"
+  },
+  {
+    "n": 67,
+    "ar": "الْأَحَدُ",
+    "name": "Al-Ahad",
+    "en": "The Unique / Indivisible One",
+    "ur": "یکتا"
+  },
+  {
+    "n": 68,
+    "ar": "الصَّمَدُ",
+    "name": "As-Samad",
+    "en": "The Eternal Refuge",
+    "ur": "بے نیاز"
+  },
+  {
+    "n": 69,
+    "ar": "الْقَادِرُ",
+    "name": "Al-Qadir",
+    "en": "The All-Capable",
+    "ur": "قدرت والا"
+  },
+  {
+    "n": 70,
+    "ar": "الْمُقْتَدِرُ",
+    "name": "Al-Muqtadir",
+    "en": "The Most Determiner",
+    "ur": "بڑی قدرت والا"
+  },
+  {
+    "n": 71,
+    "ar": "الْمُقَدِّمُ",
+    "name": "Al-Muqaddim",
+    "en": "The Expediter / Promoter",
+    "ur": "آگے بڑھانے والا"
+  },
+  {
+    "n": 72,
+    "ar": "الْمُؤَخِّرُ",
+    "name": "Al-Mu'akhkhir",
+    "en": "The Delayer",
+    "ur": "پیچھے کرنے والا"
+  },
+  {
+    "n": 73,
+    "ar": "الْأَوَّلُ",
+    "name": "Al-Awwal",
+    "en": "The First",
+    "ur": "سب سے پہلے"
+  },
+  {
+    "n": 74,
+    "ar": "الْآخِرُ",
+    "name": "Al-Akhir",
+    "en": "The Last",
+    "ur": "سب سے آخر"
+  },
+  {
+    "n": 75,
+    "ar": "الظَّاهِرُ",
+    "name": "Az-Zahir",
+    "en": "The Manifest",
+    "ur": "ظاہر"
+  },
+  {
+    "n": 76,
+    "ar": "الْبَاطِنُ",
+    "name": "Al-Batin",
+    "en": "The Hidden",
+    "ur": "باطن"
+  },
+  {
+    "n": 77,
+    "ar": "الْوَالِي",
+    "name": "Al-Wali",
+    "en": "The Governor / Patron",
+    "ur": "مالک و سرپرست"
+  },
+  {
+    "n": 78,
+    "ar": "الْمُتَعَالِي",
+    "name": "Al-Muta'ali",
+    "en": "The Most Exalted",
+    "ur": "بلند و برتر"
+  },
+  {
+    "n": 79,
+    "ar": "الْبَرُّ",
+    "name": "Al-Barr",
+    "en": "The Source of All Goodness",
+    "ur": "احسان کرنے والا"
+  },
+  {
+    "n": 80,
+    "ar": "التَّوَّابُ",
+    "name": "At-Tawwab",
+    "en": "The Accepter of Repentance",
+    "ur": "توبہ قبول کرنے والا"
+  },
+  {
+    "n": 81,
+    "ar": "الْمُنْتَقِمُ",
+    "name": "Al-Muntaqim",
+    "en": "The Avenger of Wrong",
+    "ur": "بدلہ لینے والا"
+  },
+  {
+    "n": 82,
+    "ar": "الْعَفُوُّ",
+    "name": "Al-Afuww",
+    "en": "The Pardoner",
+    "ur": "معاف کرنے والا"
+  },
+  {
+    "n": 83,
+    "ar": "الرَّءُوفُ",
+    "name": "Ar-Ra'uf",
+    "en": "The Most Compassionate",
+    "ur": "نہایت شفیق"
+  },
+  {
+    "n": 84,
+    "ar": "مَالِكُ الْمُلْكِ",
+    "name": "Malik-ul-Mulk",
+    "en": "Owner of All Sovereignty",
+    "ur": "تمام جہان کا مالک"
+  },
+  {
+    "n": 85,
+    "ar": "ذُو الْجَلَالِ وَالْإِكْرَامِ",
+    "name": "Dhul-Jalali wal-Ikram",
+    "en": "Lord of Majesty & Generosity",
+    "ur": "جلال اور بزرگی والا"
+  },
+  {
+    "n": 86,
+    "ar": "الْمُقْسِطُ",
+    "name": "Al-Muqsit",
+    "en": "The Equitable",
+    "ur": "انصاف قائم کرنے والا"
+  },
+  {
+    "n": 87,
+    "ar": "الْجَامِعُ",
+    "name": "Al-Jami",
+    "en": "The Gatherer",
+    "ur": "جمع کرنے والا"
+  },
+  {
+    "n": 88,
+    "ar": "الْغَنِيُّ",
+    "name": "Al-Ghaniyy",
+    "en": "The Self-Sufficient",
+    "ur": "بے پروا و غنی"
+  },
+  {
+    "n": 89,
+    "ar": "الْمُغْنِي",
+    "name": "Al-Mughni",
+    "en": "The Enricher",
+    "ur": "غنی کرنے والا"
+  },
+  {
+    "n": 90,
+    "ar": "الْمَانِعُ",
+    "name": "Al-Mani",
+    "en": "The Preventer of Harm",
+    "ur": "روکنے والا"
+  },
+  {
+    "n": 91,
+    "ar": "الضَّارُّ",
+    "name": "Ad-Darr",
+    "en": "The Distresser (by Divine Will)",
+    "ur": "نقصان پہنچانے والا"
+  },
+  {
+    "n": 92,
+    "ar": "النَّافِعُ",
+    "name": "An-Nafi",
+    "en": "The Benefactor",
+    "ur": "نفع پہنچانے والا"
+  },
+  {
+    "n": 93,
+    "ar": "النُّورُ",
+    "name": "An-Nur",
+    "en": "The Light",
+    "ur": "روشن کرنے والا"
+  },
+  {
+    "n": 94,
+    "ar": "الْهَادِي",
+    "name": "Al-Hadi",
+    "en": "The Guide",
+    "ur": "ہدایت دینے والا"
+  },
+  {
+    "n": 95,
+    "ar": "الْبَدِيعُ",
+    "name": "Al-Badi",
+    "en": "The Incomparable Originator",
+    "ur": "بے مثال پیدا کرنے والا"
+  },
+  {
+    "n": 96,
+    "ar": "الْبَاقِي",
+    "name": "Al-Baqi",
+    "en": "The Ever-Remaining",
+    "ur": "ہمیشہ باقی رہنے والا"
+  },
+  {
+    "n": 97,
+    "ar": "الْوَارِثُ",
+    "name": "Al-Warith",
+    "en": "The Inheritor of All",
+    "ur": "سب کا وارث"
+  },
+  {
+    "n": 98,
+    "ar": "الرَّشِيدُ",
+    "name": "Ar-Rashid",
+    "en": "The Rightly Guiding",
+    "ur": "نیک راہ دکھانے والا"
+  },
+  {
+    "n": 99,
+    "ar": "الصَّبُورُ",
+    "name": "As-Sabur",
+    "en": "The Most Patient",
+    "ur": "بڑا صبر کرنے والا"
+  }
+];
+
+const NAMES_OF_MUHAMMAD_99 = [
+  {
+    "n": 1,
+    "ar": "مُحَمَّدٌ",
+    "name": "Muhammad",
+    "en": "The Praised One",
+    "ur": "بہت تعریف کیا گیا"
+  },
+  {
+    "n": 2,
+    "ar": "أَحْمَدُ",
+    "name": "Ahmad",
+    "en": "The Most Commendable",
+    "ur": "سب سے زیادہ حمد کرنے والا"
+  },
+  {
+    "n": 3,
+    "ar": "حَامِدٌ",
+    "name": "Hamid",
+    "en": "Praising Allah",
+    "ur": "حمد کرنے والا"
+  },
+  {
+    "n": 4,
+    "ar": "مَحْمُودٌ",
+    "name": "Mahmud",
+    "en": "Praised & Commended",
+    "ur": "سراہا گیا"
+  },
+  {
+    "n": 5,
+    "ar": "قَاسِمٌ",
+    "name": "Qasim",
+    "en": "Distributor of Blessings",
+    "ur": "تقسیم کرنے والا"
+  },
+  {
+    "n": 6,
+    "ar": "عَاقِبٌ",
+    "name": "Aqib",
+    "en": "The Last of the Prophets",
+    "ur": "سب کے بعد آنے والے نبی"
+  },
+  {
+    "n": 7,
+    "ar": "فَاتِحٌ",
+    "name": "Fatih",
+    "en": "Opener of Guidance",
+    "ur": "فتح و ہدایت کھولنے والے"
+  },
+  {
+    "n": 8,
+    "ar": "شَاهِدٌ",
+    "name": "Shahid",
+    "en": "Witness",
+    "ur": "گواہ"
+  },
+  {
+    "n": 9,
+    "ar": "حَاشِرٌ",
+    "name": "Hashir",
+    "en": "Gatherer (Before Whom People Gather)",
+    "ur": "جمع کرنے والے"
+  },
+  {
+    "n": 10,
+    "ar": "رَءُوفٌ",
+    "name": "Ra'uf",
+    "en": "Full of Compassion",
+    "ur": "نہایت شفیق"
+  },
+  {
+    "n": 11,
+    "ar": "رَحِيمٌ",
+    "name": "Rahim",
+    "en": "Merciful",
+    "ur": "رحم کرنے والے"
+  },
+  {
+    "n": 12,
+    "ar": "مُصْطَفَى",
+    "name": "Mustafa",
+    "en": "The Chosen One",
+    "ur": "چنے ہوئے"
+  },
+  {
+    "n": 13,
+    "ar": "مُجْتَبَى",
+    "name": "Mujtaba",
+    "en": "Selected & Purified",
+    "ur": "منتخب کردہ"
+  },
+  {
+    "n": 14,
+    "ar": "نَبِيٌّ",
+    "name": "Nabi",
+    "en": "Prophet",
+    "ur": "نبی"
+  },
+  {
+    "n": 15,
+    "ar": "رَسُولٌ",
+    "name": "Rasul",
+    "en": "Messenger",
+    "ur": "رسول"
+  },
+  {
+    "n": 16,
+    "ar": "بَشِيرٌ",
+    "name": "Bashir",
+    "en": "Bearer of Glad Tidings",
+    "ur": "خوشخبری سنانے والے"
+  },
+  {
+    "n": 17,
+    "ar": "نَذِيرٌ",
+    "name": "Nadhir",
+    "en": "Warner",
+    "ur": "ڈرانے والے"
+  },
+  {
+    "n": 18,
+    "ar": "سِرَاجٌ مُنِيرٌ",
+    "name": "Sirajun Munir",
+    "en": "Illuminating Lamp",
+    "ur": "روشن چراغ"
+  },
+  {
+    "n": 19,
+    "ar": "طٰهٰ",
+    "name": "Taha",
+    "en": "Exalted Qur'anic Title",
+    "ur": "طٰہٰ (قرآنی لقب)"
+  },
+  {
+    "n": 20,
+    "ar": "يٰسٓ",
+    "name": "Yasin",
+    "en": "Exalted Qur'anic Title",
+    "ur": "یٰسٓ (قرآنی لقب)"
+  },
+  {
+    "n": 21,
+    "ar": "مُزَّمِّلٌ",
+    "name": "Muzzammil",
+    "en": "Enwrapped in Garments",
+    "ur": "چادر اوڑھنے والے"
+  },
+  {
+    "n": 22,
+    "ar": "مُدَّثِّرٌ",
+    "name": "Muddaththir",
+    "en": "Enfolded in Cloak",
+    "ur": "کپڑا لپٹنے والے"
+  },
+  {
+    "n": 23,
+    "ar": "عَبْدُ اللَّهِ",
+    "name": "Abdullah",
+    "en": "Servant of Allah",
+    "ur": "اللہ کے بندے"
+  },
+  {
+    "n": 24,
+    "ar": "حَبِيبُ اللَّهِ",
+    "name": "Habibullah",
+    "en": "Beloved of Allah",
+    "ur": "اللہ کے حبیب"
+  },
+  {
+    "n": 25,
+    "ar": "صَفِيُّ اللَّهِ",
+    "name": "Safiyullah",
+    "en": "Pure & Chosen of Allah",
+    "ur": "اللہ کے برگزیدہ"
+  },
+  {
+    "n": 26,
+    "ar": "نَجِيُّ اللَّهِ",
+    "name": "Najiyullah",
+    "en": "Confidant of Allah",
+    "ur": "اللہ کے رازداں"
+  },
+  {
+    "n": 27,
+    "ar": "كَلِيمُ اللَّهِ",
+    "name": "Kalimullah",
+    "en": "Spoken to by Allah",
+    "ur": "اللہ سے ہم کلام ہونے والے"
+  },
+  {
+    "n": 28,
+    "ar": "خَاتَمُ النَّبِيِّينَ",
+    "name": "Khatam an-Nabiyyin",
+    "en": "Seal of the Prophets",
+    "ur": "خاتم النبیین"
+  },
+  {
+    "n": 29,
+    "ar": "إِمَامُ الْمُتَّقِينَ",
+    "name": "Imam al-Muttaqin",
+    "en": "Leader of the Pious",
+    "ur": "متقیوں کے امام"
+  },
+  {
+    "n": 30,
+    "ar": "قَائِدُ الْغُرِّ الْمُحَجَّلِينَ",
+    "name": "Qa'id al-Ghurr al-Muhajjalin",
+    "en": "Leader of the Radiant Ones",
+    "ur": "روشن پیشانی والوں کے قائد"
+  },
+  {
+    "n": 31,
+    "ar": "شَفِيعٌ",
+    "name": "Shafi",
+    "en": "Intercessor",
+    "ur": "شفاعت کرنے والے"
+  },
+  {
+    "n": 32,
+    "ar": "مُشَفَّعٌ",
+    "name": "Mushaffa",
+    "en": "Accepted in Intercession",
+    "ur": "جن کی شفاعت قبول ہو"
+  },
+  {
+    "n": 33,
+    "ar": "صَادِقٌ",
+    "name": "Sadiq",
+    "en": "The Truthful",
+    "ur": "سچے"
+  },
+  {
+    "n": 34,
+    "ar": "مَصْدُوقٌ",
+    "name": "Masduq",
+    "en": "Confirmed in Truth",
+    "ur": "تصدیق کیے گئے سچے"
+  },
+  {
+    "n": 35,
+    "ar": "أَمِينٌ",
+    "name": "Amin",
+    "en": "The Trustworthy",
+    "ur": "امانت دار"
+  },
+  {
+    "n": 36,
+    "ar": "مَأْمُونٌ",
+    "name": "Ma'mun",
+    "en": "Trusted One",
+    "ur": "معتمد و امین"
+  },
+  {
+    "n": 37,
+    "ar": "كَرِيمٌ",
+    "name": "Karim",
+    "en": "Noble & Generous",
+    "ur": "کریم و بزرگ"
+  },
+  {
+    "n": 38,
+    "ar": "عَظِيمٌ",
+    "name": "Azim",
+    "en": "Exalted in Character",
+    "ur": "عظیم المرتبت"
+  },
+  {
+    "n": 39,
+    "ar": "حَكِيمٌ",
+    "name": "Hakim",
+    "en": "Wise",
+    "ur": "حکمت والے"
+  },
+  {
+    "n": 40,
+    "ar": "عَلِيمٌ",
+    "name": "Alim",
+    "en": "Learned by Allah",
+    "ur": "علم والے"
+  },
+  {
+    "n": 41,
+    "ar": "حَلِيمٌ",
+    "name": "Halim",
+    "en": "Forbearing",
+    "ur": "بردبار"
+  },
+  {
+    "n": 42,
+    "ar": "جَوَادٌ",
+    "name": "Jawad",
+    "en": "Bountiful",
+    "ur": "سخی"
+  },
+  {
+    "n": 43,
+    "ar": "عَفُوٌّ",
+    "name": "Afuww",
+    "en": "Pardoning",
+    "ur": "معاف کرنے والے"
+  },
+  {
+    "n": 44,
+    "ar": "بَرٌّ",
+    "name": "Barr",
+    "en": "Dutiful & Righteous",
+    "ur": "نیک و بھلائی کرنے والے"
+  },
+  {
+    "n": 45,
+    "ar": "وَصُولٌ",
+    "name": "Wasul",
+    "en": "Upholder of Kinship & Ties",
+    "ur": "صلہ رحمی کرنے والے"
+  },
+  {
+    "n": 46,
+    "ar": "مُذَكِّرٌ",
+    "name": "Mudhakkir",
+    "en": "Reminder",
+    "ur": "نصیحت کرنے والے"
+  },
+  {
+    "n": 47,
+    "ar": "دَاعٍ إِلَى اللَّهِ",
+    "name": "Da'in ilallah",
+    "en": "Caller to Allah",
+    "ur": "اللہ کی طرف بلانے والے"
+  },
+  {
+    "n": 48,
+    "ar": "هَادٍ",
+    "name": "Hadi",
+    "en": "Guide by Allah's Command",
+    "ur": "ہدایت دکھانے والے"
+  },
+  {
+    "n": 49,
+    "ar": "مَهْدِيٌّ",
+    "name": "Mahdiyy",
+    "en": "Rightly Guided",
+    "ur": "ہدایت یافتہ"
+  },
+  {
+    "n": 50,
+    "ar": "قَيِّمٌ",
+    "name": "Qayyim",
+    "en": "Upright & Steadfast",
+    "ur": "قائم و استوار"
+  },
+  {
+    "n": 51,
+    "ar": "مُنْذِرٌ",
+    "name": "Mundhir",
+    "en": "Admonisher",
+    "ur": "خبردار کرنے والے"
+  },
+  {
+    "n": 52,
+    "ar": "مُبَشِّرٌ",
+    "name": "Mubashshir",
+    "en": "Announcer of Good",
+    "ur": "بشارت دینے والے"
+  },
+  {
+    "n": 53,
+    "ar": "نُورٌ",
+    "name": "Nur",
+    "en": "Light of Guidance",
+    "ur": "نورِ ہدایت"
+  },
+  {
+    "n": 54,
+    "ar": "بُرْهَانٌ",
+    "name": "Burhan",
+    "en": "Clear Proof",
+    "ur": "روشن دلیل"
+  },
+  {
+    "n": 55,
+    "ar": "حُجَّةٌ",
+    "name": "Hujjah",
+    "en": "Decisive Evidence",
+    "ur": "واضح حجت"
+  },
+  {
+    "n": 56,
+    "ar": "رَحْمَةٌ لِلْعَالَمِينَ",
+    "name": "Rahmatul lil-Alamin",
+    "en": "Mercy to All Worlds",
+    "ur": "تمام جہانوں کے لیے رحمت"
+  },
+  {
+    "n": 57,
+    "ar": "نِعْمَةُ اللَّهِ",
+    "name": "Ni'matullah",
+    "en": "Blessing of Allah",
+    "ur": "اللہ کی نعمت"
+  },
+  {
+    "n": 58,
+    "ar": "مِصْبَاحٌ",
+    "name": "Misbah",
+    "en": "Beacon Lamp",
+    "ur": "روشن دیپ"
+  },
+  {
+    "n": 59,
+    "ar": "مِفْتَاحُ الرَّحْمَةِ",
+    "name": "Miftah ar-Rahmah",
+    "en": "Key to Mercy",
+    "ur": "رحمت کی کنجی"
+  },
+  {
+    "n": 60,
+    "ar": "مِفْتَاحُ الْجَنَّةِ",
+    "name": "Miftah al-Jannah",
+    "en": "Key to Paradise",
+    "ur": "جنت کی کنجی"
+  },
+  {
+    "n": 61,
+    "ar": "عَلَمُ الْهُدَى",
+    "name": "Alam al-Huda",
+    "en": "Banner of Guidance",
+    "ur": "ہدایت کا نشان"
+  },
+  {
+    "n": 62,
+    "ar": "عَلَمُ الْإِيمَانِ",
+    "name": "Alam al-Iman",
+    "en": "Banner of Faith",
+    "ur": "ایمان کا پرچم"
+  },
+  {
+    "n": 63,
+    "ar": "عَلَمُ الْيَقِينِ",
+    "name": "Alam al-Yaqin",
+    "en": "Standard of Certainty",
+    "ur": "یقین کا نشان"
+  },
+  {
+    "n": 64,
+    "ar": "صَاحِبُ الْكَوْثَرِ",
+    "name": "Sahib al-Kawthar",
+    "en": "Master of Al-Kawthar",
+    "ur": "حوضِ کوثر کے مالک"
+  },
+  {
+    "n": 65,
+    "ar": "صَاحِبُ الْمَقَامِ الْمَحْمُودِ",
+    "name": "Sahib al-Maqam al-Mahmud",
+    "en": "Holder of the Praised Station",
+    "ur": "مقامِ محمود کے مالک"
+  },
+  {
+    "n": 66,
+    "ar": "صَاحِبُ اللِّوَاءِ",
+    "name": "Sahib al-Liwa",
+    "en": "Bearer of the Banner of Praise",
+    "ur": "لواء الحمد کے حامل"
+  },
+  {
+    "n": 67,
+    "ar": "صَاحِبُ الشَّفَاعَةِ",
+    "name": "Sahib ash-Shafa'ah",
+    "en": "Owner of Supreme Intercession",
+    "ur": "شفاعتِ کبریٰ کے مالک"
+  },
+  {
+    "n": 68,
+    "ar": "صَاحِبُ الْوَسِيلَةِ",
+    "name": "Sahib al-Wasilah",
+    "en": "Holder of Al-Wasilah",
+    "ur": "وسیلہ کے مالک"
+  },
+  {
+    "n": 69,
+    "ar": "صَاحِبُ الْفَضِيلَةِ",
+    "name": "Sahib al-Fadilah",
+    "en": "Holder of Highest Virtue",
+    "ur": "فضیلت والے"
+  },
+  {
+    "n": 70,
+    "ar": "صَاحِبُ الدَّرَجَةِ الرَّفِيعَةِ",
+    "name": "Sahib ad-Darajah ar-Rafi'ah",
+    "en": "Of the Most Exalted Rank",
+    "ur": "بلند درجہ والے"
+  },
+  {
+    "n": 71,
+    "ar": "صَاحِبُ التَّاجِ",
+    "name": "Sahib at-Taj",
+    "en": "Crowned with Honor",
+    "ur": "تاجِ عزت والے"
+  },
+  {
+    "n": 72,
+    "ar": "صَاحِبُ الْمِغْفَرِ",
+    "name": "Sahib al-Mighfar",
+    "en": "Helm-Bearer",
+    "ur": "مغفر والے"
+  },
+  {
+    "n": 73,
+    "ar": "صَاحِبُ الْقَضِيبِ",
+    "name": "Sahib al-Qadib",
+    "en": "Bearer of the Staff",
+    "ur": "قضیب والے"
+  },
+  {
+    "n": 74,
+    "ar": "صَاحِبُ الْبُرَاقِ",
+    "name": "Sahib al-Buraq",
+    "en": "Rider of Al-Buraq",
+    "ur": "براق سوار"
+  },
+  {
+    "n": 75,
+    "ar": "صَاحِبُ الْمِعْرَاجِ",
+    "name": "Sahib al-Mi'raj",
+    "en": "Ascender of Al-Mi'raj",
+    "ur": "معراج والے"
+  },
+  {
+    "n": 76,
+    "ar": "مُخْتَارٌ",
+    "name": "Mukhtar",
+    "en": "The Elected",
+    "ur": "برگزیدہ"
+  },
+  {
+    "n": 77,
+    "ar": "مُنْتَخَبٌ",
+    "name": "Muntakhab",
+    "en": "The Selected",
+    "ur": "چنے گئے"
+  },
+  {
+    "n": 78,
+    "ar": "مَطْلُوبٌ",
+    "name": "Matlub",
+    "en": "The Sought-After Guide",
+    "ur": "مطلوب و مقصود"
+  },
+  {
+    "n": 79,
+    "ar": "مَرْغُوبٌ",
+    "name": "Marghub",
+    "en": "Desired in Goodness",
+    "ur": "مرغوب"
+  },
+  {
+    "n": 80,
+    "ar": "مَقْصُودٌ",
+    "name": "Maqsud",
+    "en": "The Ultimate Aim of Guidance",
+    "ur": "مقصود"
+  },
+  {
+    "n": 81,
+    "ar": "مَنْصُورٌ",
+    "name": "Mansur",
+    "en": "Divinely Aided & Victorious",
+    "ur": "نصرت یافتہ"
+  },
+  {
+    "n": 82,
+    "ar": "مُؤَيَّدٌ",
+    "name": "Mu'ayyad",
+    "en": "Strengthened by Allah",
+    "ur": "تائید یافتہ"
+  },
+  {
+    "n": 83,
+    "ar": "مُفْتَتَحٌ",
+    "name": "Muftatah",
+    "en": "Commencer of the Final Era",
+    "ur": "آغاز کرنے والے"
+  },
+  {
+    "n": 84,
+    "ar": "مُخْتَتَمٌ",
+    "name": "Mukhtatam",
+    "en": "Completer of Prophethood",
+    "ur": "مکمل کرنے والے"
+  },
+  {
+    "n": 85,
+    "ar": "أَبْطَحِيٌّ",
+    "name": "Abtahiyy",
+    "en": "Of Al-Abtah (Makkah)",
+    "ur": "ابطحی"
+  },
+  {
+    "n": 86,
+    "ar": "قُرَشِيٌّ",
+    "name": "Qurashiyy",
+    "en": "Of Quraysh",
+    "ur": "قریشی"
+  },
+  {
+    "n": 87,
+    "ar": "هَاشِمِيٌّ",
+    "name": "Hashimiyy",
+    "en": "Of Banu Hashim",
+    "ur": "ہاشمی"
+  },
+  {
+    "n": 88,
+    "ar": "مَكِّيٌّ",
+    "name": "Makkiyy",
+    "en": "Of Makkah",
+    "ur": "مکی"
+  },
+  {
+    "n": 89,
+    "ar": "مَدَنِيٌّ",
+    "name": "Madaniyy",
+    "en": "Of Madinah",
+    "ur": "مدنی"
+  },
+  {
+    "n": 90,
+    "ar": "عَرَبِيٌّ",
+    "name": "Arabiyy",
+    "en": "Arab",
+    "ur": "عربی"
+  },
+  {
+    "n": 91,
+    "ar": "أُمِّيٌّ",
+    "name": "Ummiyy",
+    "en": "Unlettered Teacher by Revelation",
+    "ur": "اُمی نبی"
+  },
+  {
+    "n": 92,
+    "ar": "مُتَوَكِّلٌ",
+    "name": "Mutawakkil",
+    "en": "Reliant Upon Allah",
+    "ur": "توکل کرنے والے"
+  },
+  {
+    "n": 93,
+    "ar": "مُسْتَعَانٌ",
+    "name": "Musta'an",
+    "en": "Seeking Aid from Allah",
+    "ur": "اللہ سے مدد چاہنے والے"
+  },
+  {
+    "n": 94,
+    "ar": "مُصَلٍّ",
+    "name": "Musalli",
+    "en": "Devout Worshipper",
+    "ur": "نماز و عبادت گزار"
+  },
+  {
+    "n": 95,
+    "ar": "سَاجِدٌ",
+    "name": "Sajid",
+    "en": "Prostrating to Allah",
+    "ur": "سجدہ ریز"
+  },
+  {
+    "n": 96,
+    "ar": "عَابِدٌ",
+    "name": "Abid",
+    "en": "True Servant of Allah",
+    "ur": "عابد"
+  },
+  {
+    "n": 97,
+    "ar": "زَاهِدٌ",
+    "name": "Zahid",
+    "en": "Detached from Worldly Vanity",
+    "ur": "زاہد"
+  },
+  {
+    "n": 98,
+    "ar": "طَيِّبٌ",
+    "name": "Tayyib",
+    "en": "Pure & Wholesome",
+    "ur": "طیب و پاک"
+  },
+  {
+    "n": 99,
+    "ar": "طَاهِرٌ",
+    "name": "Tahir",
+    "en": "Spotless & Pure",
+    "ur": "طاہر"
+  }
+];
+
+var currentAsmaTab = 'allah';
+function renderAsmaulHusna(filter){
+  var q = String((filter !== undefined ? filter : ($('asmaulSearch') ? $('asmaulSearch').value : '')) || '').trim().toLowerCase();
+  var box = $('asmaulContent');
+  if(!box) return;
+  document.querySelectorAll('#asmaulSubTabs .sub-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.asmatab === currentAsmaTab);
+  });
+  var items = (currentAsmaTab === 'muhammad') ? NAMES_OF_MUHAMMAD_99 : NAMES_OF_ALLAH_99;
+  if(q){
+    items = items.filter(function(it){
+      return ((it && it.ar ? it.ar : '') + ' ' + (it && it.name ? it.name : '') + ' ' + (it && it.en ? it.en : '') + ' ' + (it && it.ur ? it.ur : '')).toLowerCase().includes(q);
+    });
+  }
+  var heading = (currentAsmaTab === 'muhammad')
+    ? '99 Names of Mohammed SA PUBH (صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ)'
+    : '99 Names of Allah (Asma’ul Husna — الأَسْمَاءُ الْحُسْنَىٰ)';
+  var html = `<div class="muted" style="margin-bottom:8px;">Showing <strong>${items.length}</strong> entries · <strong>${heading}</strong></div>`;
+  html += items.map(function(it, idx){
+    var numVal = (it && it.n !== undefined && it.n !== null) ? it.n : '';
+    var arVal = (it && it.ar) ? it.ar : '';
+    var lblVal = (it && it.name) ? it.name : '';
+    var enVal = (it && it.en) ? it.en : '';
+    var urVal = (it && it.ur) ? it.ur : '';
+    return `<div class="dhikr" id="asmaCard_${idx}" data-asma-idx="${idx}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+        <span class="badge gold">#${numVal}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--gold2);">${lblVal}</span>
+      </div>
+      ${arVal ? `<div class="ar asma-line-ar" style="font-size:21px;">${arVal}</div>` : ''}
+      ${enVal ? `<div class="tr asma-line-en">${enVal}</div>` : ''}
+      ${urVal ? `<div class="ur-tr asma-line-ur">${urVal}</div>` : ''}
+      <div class="audio-actions" style="margin-top:6px;">
+        ${arVal ? ttsBtn(arVal, 'ar', '🔊 Arabic') : ''}
+        ${enVal ? ttsBtn(enVal, 'en', '🔊 English (Optional)') : ''}
+        ${urVal ? ttsBtn(urVal, 'ur', '🔊 Urdu (Optional)') : ''}
+      </div>
+    </div>`;
+  }).join('');
+  box.innerHTML = html || `<div class="muted">No matching names found.</div>`;
+}
+
+function clearAsmaFocus(){
+  document.querySelectorAll('#asmaulContent .dhikr.playing').forEach(function(el){
+    el.classList.remove('playing');
+  });
+  document.querySelectorAll('#asmaulContent .playing-line').forEach(function(el){
+    el.classList.remove('playing-line');
+  });
+}
+
+function focusAsmaLine(idx, lineSelector){
+  clearAsmaFocus();
+  var card = $('asmaCard_' + idx);
+  if(!card) return;
+  card.classList.add('playing');
+  if(lineSelector){
+    var lineEl = card.querySelector(lineSelector);
+    if(lineEl) lineEl.classList.add('playing-line');
+  }
+  try {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch(_){}
+}
+
+(function bindAsmaulTabsOnce(){
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('#asmaulSubTabs .sub-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        currentAsmaTab = btn.dataset.asmatab || 'allah';
+        stopAsmaulPlayAll();
+        renderAsmaulHusna();
+      });
+    });
+    var inp = $('asmaulSearch');
+    if(inp) inp.addEventListener('input', function(e){ stopAsmaulPlayAll(); renderAsmaulHusna(e.target.value); });
+  });
+})();
+
+var _asmaPlayAllActive = false;
+var _asmaPlayAllRunId = 0;
+var _asmaIncludeTr = false;
+var _asmaIncludeUr = false;
+window._adhkarIncludeUr = false;
+
+function toggleAdhkarUrMode(){
+  window._adhkarIncludeUr = !window._adhkarIncludeUr;
+  var b = $('adhkarUrModeBtn');
+  if(b){
+    b.textContent = window._adhkarIncludeUr ? '+UR: ON' : '+UR: OFF';
+    b.classList.toggle('active-tr', window._adhkarIncludeUr);
+  }
+}
+window.toggleAdhkarUrMode = toggleAdhkarUrMode;
+
+function toggleAsmaUrMode(){
+  _asmaIncludeUr = !_asmaIncludeUr;
+  var b = $('asmaUrModeBtn');
+  if(b){
+    b.textContent = _asmaIncludeUr ? '+UR: ON' : '+UR: OFF';
+    b.classList.toggle('active-tr', _asmaIncludeUr);
+  }
+}
+window.toggleAsmaUrMode = toggleAsmaUrMode;
+
+function toggleAsmaTrMode(){
+  _asmaIncludeTr = !_asmaIncludeTr;
+  var b = $('asmaTrModeBtn');
+  if(b){
+    b.textContent = _asmaIncludeTr ? '+Tr: ON' : '+Tr: OFF';
+    b.classList.toggle('active-tr', _asmaIncludeTr);
+  }
+}
+window.toggleAsmaTrMode = toggleAsmaTrMode;
+
+function stopAsmaulPlayAll(){
+  _asmaPlayAllActive = false;
+  _asmaPlayAllRunId++;
+  clearAsmaFocus();
+  var btn = $('asmaPlayAllBtn');
+  if(btn){ btn.textContent = '▶ Play All (Arabic)'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+  var st = $('asmaPlayStatus');
+  if(st) st.textContent = (st.id === 'asmaPlayStatus') ? 'Ready — Arabic Base' : 'Ready — Tap Play All';
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+}
+window.stopAsmaulPlayAll = stopAsmaulPlayAll;
+
+async function togglePlayAllAsmaul(){
+  if(_asmaPlayAllActive){
+    stopAsmaulPlayAll();
+    return;
+  }
+  var q = String(($('asmaulSearch') ? $('asmaulSearch').value : '') || '').trim().toLowerCase();
+  var baseList = (currentAsmaTab === 'muhammad') ? NAMES_OF_MUHAMMAD_99 : NAMES_OF_ALLAH_99;
+  var list = q
+    ? baseList.filter(function(it){
+        return ((it && it.ar ? it.ar : '') + ' ' + (it && it.name ? it.name : '') + ' ' + (it && it.en ? it.en : '') + ' ' + (it && it.ur ? it.ur : '')).toLowerCase().includes(q);
+      })
+    : baseList.slice();
+  if(!list.length){
+    toast('No names available to play.');
+    return;
+  }
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+  _asmaPlayAllActive = true;
+  var runId = ++_asmaPlayAllRunId;
+  var btn = $('asmaPlayAllBtn');
+  var st = $('asmaPlayStatus');
+  if(btn){ btn.textContent = '■ Stop'; btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
+
+  for(var i = 0; i < list.length; i++){
+    if(!_asmaPlayAllActive || runId !== _asmaPlayAllRunId) break;
+    var it = list[i] || {};
+    var lblVal = it.name || '';
+    var enVal = it.en || '';
+    if(st) st.textContent = 'Arabic ' + (i + 1) + ' / ' + list.length + (lblVal ? ': ' + lblVal : '');
+    try {
+      if(it.ar){
+        focusAsmaLine(i, '.asma-line-ar');
+        await playTTS(it.ar, 'ar', { keepSession: (i > 0) });
+        if(!_asmaPlayAllActive || runId !== _asmaPlayAllRunId) break;
+      }
+      if(_asmaIncludeTr && enVal){
+        focusAsmaLine(i, '.asma-line-en');
+        await playTTS(enVal, 'en', { keepSession: true });
+        if(!_asmaPlayAllActive || runId !== _asmaPlayAllRunId) break;
+      }
+      if(_asmaIncludeUr && it.ur){
+        focusAsmaLine(i, '.asma-line-ur');
+        await playTTS(it.ur, 'ur', { keepSession: true });
+        if(!_asmaPlayAllActive || runId !== _asmaPlayAllRunId) break;
+      }
+    } catch(_){}
+    if(!_asmaPlayAllActive || runId !== _asmaPlayAllRunId) break;
+    await new Promise(function(res){ setTimeout(res, 220); });
+  }
+  if(runId === _asmaPlayAllRunId){
+    _asmaPlayAllActive = false;
+    clearAsmaFocus();
+    if(btn){ btn.textContent = '▶ Play All (Arabic)'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+    if(st) st.textContent = (st.id === 'asmaPlayStatus') ? 'Ready — Arabic Base' : 'Ready — Tap Play All';
+  }
+}
+window.togglePlayAllAsmaul = togglePlayAllAsmaul;
+
+
+
 // ---------- GPS ----------
 function updateCityFields(){
   var lat=$('latInput'); if(lat) lat.value = state.lat;
@@ -5934,6 +7823,84 @@ function renderSettingsTab(tab){
       </div>
       <div class="muted" id="backupStatus" style="margin-top:8px;"></div>
     </div>`;
+  } else if(tab==='custom'){
+    var savedHadiths = getCustomHadiths();
+    var savedMisc = getCustomMiscAdhkar();
+    var hadithRows = savedHadiths.length
+      ? savedHadiths.map(function(h, idx){
+          return `<div style="background:var(--card2);border:1px solid rgba(212,175,55,.22);border-radius:10px;padding:8px 10px;margin-top:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span class="badge ${h.grade==='Verified Reference'?'green':'gold'}">${h.grade || 'Custom'}</span>
+              <button type="button" class="btn-chip" data-del-hadith="${idx}" style="padding:3px 8px;font-size:10.5px;color:var(--red);">Delete</button>
+            </div>
+            ${h.ar ? `<div class="ar" style="font-size:17px;margin-top:4px;">${h.ar}</div>` : ''}
+            <div style="font-size:12px;margin-top:4px;">${h.en}</div>
+            <div class="muted" style="margin-top:3px;">Narrator: <strong>${h.narrator || 'Not specified'}</strong> · Source: <strong>${h.source}</strong> · <a href="${h.url || 'https://sunnah.com'}" target="_blank" rel="noopener">Verify ↗</a></div>
+          </div>`;
+        }).join('')
+      : `<div class="muted" style="margin-top:6px;">No custom hadiths added yet. Use the form above to add and validate one.</div>`;
+
+    var miscRows = savedMisc.length
+      ? savedMisc.map(function(m, idx){
+          return `<div style="background:var(--card2);border:1px solid rgba(212,175,55,.22);border-radius:10px;padding:8px 10px;margin-top:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span class="badge gold">Count: ${m.count}x</span>
+              <button type="button" class="btn-chip" data-del-misc="${idx}" style="padding:3px 8px;font-size:10.5px;color:var(--red);">Delete</button>
+            </div>
+            ${m.issue ? `<div style="font-size:11.5px;font-weight:700;color:var(--gold2);margin-top:3px;">${m.issue}</div>` : ''}
+            <div class="ar" style="font-size:17px;margin-top:4px;">${m.ar}</div>
+            <div style="font-size:12px;margin-top:3px;">${m.en}</div>
+            <div class="muted" style="margin-top:3px;">Reference: <strong>${m.src}</strong></div>
+          </div>`;
+        }).join('')
+      : `<div class="muted" style="margin-top:6px;">No entries in Dhikr → Adhkar → Miscellaneous yet.</div>`;
+
+    container.innerHTML = `
+      <div class="card">
+        <h3>📜 Add &amp; Validate Hadith (→ Home → Hadith)</h3>
+        <div class="muted" style="margin-bottom:8px;">Enter a Hadith with its canonical collection &amp; number (e.g., <em>Sahih al-Bukhari 6018</em>, <em>Sahih Muslim 45</em>, <em>Jami' at-Tirmidhi 1987</em>). It will be validated for reference structure and added to the app's Hadith rotation.</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <textarea id="custHadithAr" rows="2" placeholder="Arabic Hadith text (optional)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-family:'Amiri',serif;font-size:16px;direction:rtl;"></textarea>
+          <textarea id="custHadithEn" rows="2" placeholder="English translation / meaning (required)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;"></textarea>
+          <input type="text" id="custHadithUr" placeholder="Urdu translation (optional)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;direction:rtl;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <input type="text" id="custHadithNarrator" placeholder="Narrator (e.g., Abu Hurairah RA)" style="flex:1;min-width:150px;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;">
+            <input type="text" id="custHadithSource" placeholder="Reference Source (required, e.g., Sahih al-Bukhari 6018)" style="flex:1.4;min-width:190px;background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.3);border-radius:8px;padding:7px;font-size:12px;">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span id="custHadithStatus" class="muted"></span>
+            <button type="button" id="addCustomHadithBtn" class="btn-primary">✓ Validate &amp; Add Hadith</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;">${hadithRows}</div>
+      </div>
+
+      <div class="card">
+        <h3>✨ Add Ayah / Dhikr with Count (→ Dhikr → Adhkar → Miscellaneous)</h3>
+        <div class="muted" style="margin-bottom:8px;">Add an Ayah or Dhikr with a target repetition count and reference source (e.g., <em>Qur'an 2:255</em> or <em>Sahih Muslim 2691</em>). Validated entries appear under <strong>Dhikr → Adhkar → ✨ Miscellaneous</strong>.</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <input type="text" id="custMiscTitle" placeholder="Title / Occasion (e.g., Ayatul Kursi After Salah)" style="flex:2;min-width:180px;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;">
+            <input type="number" id="custMiscCount" min="1" max="100000" value="33" placeholder="Count" style="flex:0 0 95px;background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.3);border-radius:8px;padding:7px;font-size:12px;">
+          </div>
+          <textarea id="custMiscAr" rows="2" placeholder="Arabic Ayah or Dhikr text (required)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-family:'Amiri',serif;font-size:17px;direction:rtl;"></textarea>
+          <input type="text" id="custMiscTranslit" placeholder="Transliteration (optional)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;">
+          <textarea id="custMiscEn" rows="2" placeholder="English translation / meaning (required)" style="width:100%;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;"></textarea>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <input type="text" id="custMiscUr" placeholder="Urdu translation (optional)" style="flex:1;min-width:150px;background:var(--card2);color:var(--text);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px;font-size:12px;direction:rtl;">
+            <input type="text" id="custMiscSource" placeholder="Reference Source (required, e.g., Qur'an 2:255 or Sahih Muslim 2691)" style="flex:1.4;min-width:190px;background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.3);border-radius:8px;padding:7px;font-size:12px;">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span id="custMiscStatus" class="muted"></span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn-chip" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=adhkar]'); if(s) s.click(); setTimeout(()=>{var b=document.querySelector('[data-cat=miscellaneous]'); if(b) b.click();},80);},60);">Open Miscellaneous ↗</button>
+              <button type="button" id="addCustomMiscBtn" class="btn-primary">✓ Validate &amp; Add to Miscellaneous</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px;">${miscRows}</div>
+      </div>
+    `;
   } else if(tab==='about'){
     container.innerHTML = `<div class="card">
       <h3>About</h3>
@@ -6421,6 +8388,95 @@ function bindSettingsTabEvents(tab){
     var eb = $('exportBackupBtn'); if(eb) eb.addEventListener('click', exportAudioBackup);
     var ib = $('importBackupInput'); if(ib) ib.addEventListener('change', (e)=>{ if(e.target.files && e.target.files[0]) importAudioBackup(e.target.files[0]); });
     var sab = $('syncAllBtn'); if(sab) sab.addEventListener('click', syncAllAudio);
+  } else if(tab==='custom'){
+    var addH = $('addCustomHadithBtn');
+    if(addH) addH.addEventListener('click', function(){
+      var ar = ($('custHadithAr').value || '').trim();
+      var en = ($('custHadithEn').value || '').trim();
+      var ur = ($('custHadithUr').value || '').trim();
+      var narrator = ($('custHadithNarrator').value || '').trim() || 'Reported in Cited Collection';
+      var source = ($('custHadithSource').value || '').trim();
+      var st = $('custHadithStatus');
+      if(!en && !ar){ if(st) st.textContent = '⚠️ Please enter the Hadith text.'; return; }
+      if(!source){ if(st) st.textContent = '⚠️ Please enter a Reference Source (e.g., Sahih al-Bukhari 6018).'; return; }
+      var check = evaluateReferenceSource(source);
+      var entry = {
+        ar: ar,
+        en: en || ar,
+        ur: ur,
+        narrator: narrator,
+        source: source,
+        grade: check.verified ? 'Verified Reference' : 'Source Noted',
+        tag: 'daily',
+        url: check.url
+      };
+      var list = getCustomHadiths();
+      list.unshift(entry);
+      saveCustomHadiths(list);
+      HADITHS.unshift(entry);
+      _hadithOffset = 0;
+      toast('Hadith validated & added (' + check.label + ')');
+      renderSettingsTab('custom');
+    });
+
+    document.querySelectorAll('[data-del-hadith]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var i = parseInt(btn.getAttribute('data-del-hadith'), 10);
+        var list = getCustomHadiths();
+        var removed = list.splice(i, 1)[0];
+        saveCustomHadiths(list);
+        if(removed){
+          var idxInAll = HADITHS.findIndex(function(h){ return h.en === removed.en && h.source === removed.source; });
+          if(idxInAll !== -1) HADITHS.splice(idxInAll, 1);
+        }
+        toast('Custom Hadith removed');
+        renderSettingsTab('custom');
+      });
+    });
+
+    var addM = $('addCustomMiscBtn');
+    if(addM) addM.addEventListener('click', function(){
+      var title = ($('custMiscTitle').value || '').trim();
+      var count = Math.max(1, parseInt($('custMiscCount').value || '33', 10) || 1);
+      var ar = ($('custMiscAr').value || '').trim();
+      var translit = ($('custMiscTranslit').value || '').trim();
+      var en = ($('custMiscEn').value || '').trim();
+      var ur = ($('custMiscUr').value || '').trim();
+      var source = ($('custMiscSource').value || '').trim();
+      var st = $('custMiscStatus');
+      if(!ar){ if(st) st.textContent = '⚠️ Please enter the Arabic Ayah or Dhikr text.'; return; }
+      if(!en){ if(st) st.textContent = '⚠️ Please enter the English translation.'; return; }
+      if(!source){ if(st) st.textContent = '⚠️ Please enter a Reference Source (e.g., Qur\'an 2:255 or Sahih Muslim 2691).'; return; }
+      var check = evaluateReferenceSource(source);
+      var entry = {
+        id: 'misc_' + Date.now(),
+        cat: 'miscellaneous',
+        issue: title ? (title + ' (' + count + 'x)') : ('Custom Ayah / Dhikr (' + count + 'x)'),
+        ar: ar,
+        translit: translit,
+        en: en,
+        ur: ur,
+        count: count,
+        src: source + (check.verified ? ' · Verified Reference' : ' · Custom Reference'),
+        virtue: 'Added and validated in Settings → Custom / Verify.'
+      };
+      var list = getCustomMiscAdhkar();
+      list.unshift(entry);
+      saveCustomMiscAdhkar(list);
+      toast('Added to Dhikr → Adhkar → Miscellaneous (' + count + 'x)');
+      renderSettingsTab('custom');
+    });
+
+    document.querySelectorAll('[data-del-misc]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var i = parseInt(btn.getAttribute('data-del-misc'), 10);
+        var list = getCustomMiscAdhkar();
+        list.splice(i, 1);
+        saveCustomMiscAdhkar(list);
+        toast('Entry removed from Miscellaneous');
+        renderSettingsTab('custom');
+      });
+    });
   }
 }
 function bindEvents(){
@@ -6549,6 +8605,7 @@ function bindEvents(){
   // dhikr side menu
   document.querySelectorAll('.dh-side').forEach(b=>{
     b.addEventListener('click', ()=>{
+      if(typeof stopDaroodPlayAll === 'function') stopDaroodPlayAll();
       document.querySelectorAll('.dh-side').forEach(x=>x.classList.remove('active'));
       b.classList.add('active');
       document.querySelectorAll('.dh-panel').forEach(p=>p.classList.add('hidden'));
@@ -6558,6 +8615,7 @@ function bindEvents(){
       if(b.dataset.dh==='duas') renderDuas();
       if(b.dataset.dh==='kalima') renderKalima();
       if(b.dataset.dh==='darood') renderDarood();
+      if(b.dataset.dh==='asmaul') renderAsmaulHusna();
       if(b.dataset.dh==='quran') renderSurahList();
     });
   });
@@ -6751,7 +8809,7 @@ function renderRecSurahs(){
 }
 function renderEssAdhkar(){
   var items = [{label:'Morning Adhkar', cat:'morning'},{label:'Evening Adhkar', cat:'evening'},{label:'After Salah Dhikr', cat:'after_salah'},{label:'Sleep Adhkar', cat:'sleep'},{label:'Relief Duas', cat:'relief'}];
-  var html = items.map(it=>`<button style="margin:4px;padding:8px 12px;border-radius:10px;background:var(--card2);" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=adhkar]'); if(s) s.click(); setTimeout(()=>{var b=document.querySelector('[data-cat=${it.cat}]'); if(b) b.click();},100);},100);">${it.label}</button>`).join('');
+  var html = items.map(it=>`<button style="margin:4px;padding:8px 12px;border-radius:10px;background:var(--card2);" onclick="switchView('dhikr'); setTimeout(()=>{var s=document.querySelector('.dh-side[data-dh=adhkar]'); if(s) s.click(); setTimeout(()=>{var b=document.querySelector('[data-cat=${it.cat}]'); if(b) b.click();},100);},100);">${it.name}</button>`).join('');
   var el = $('essAdhkar'); if(el) el.innerHTML = html;
 }
 function renderHadithHour(){
@@ -7172,12 +9230,12 @@ function renderDarood(){
   var box = $('daroodContent');
   if(!box) return;
 
-  var formsHtml = DAROOD_DATA.forms.map(function(f){
-    return `<div class="step-dua-box" style="margin-top:0;margin-bottom:10px;">
+  var formsHtml = DAROOD_DATA.forms.map(function(f, idx){
+    return `<div class="step-dua-box" id="daroodCard_${idx}" data-darood-idx="${idx}" style="margin-top:0;margin-bottom:10px;">
       <div style="font-weight:700;color:var(--gold2);font-size:12.5px;margin-bottom:4px;">${f.title}</div>
-      <div class="ar" style="font-size:20px;line-height:1.9;">${f.ar}</div>
+      <div class="ar darood-line-ar" style="font-size:20px;line-height:1.9;">${f.ar}</div>
       <div class="translit">${f.translit}</div>
-      <div class="tr">${f.en}</div>
+      <div class="tr darood-line-en">${f.en}</div>
       <div class="ur-tr">${f.ur}</div>
       <div class="muted" style="margin-bottom:4px;">${f.note}</div>
       <div class="src">Authentic Reference: ${f.ref}</div>
@@ -7216,6 +9274,118 @@ function renderDarood(){
     </div>
   `;
 }
+
+function clearDaroodFocus(){
+  document.querySelectorAll('#daroodContent .step-dua-box.playing').forEach(function(el){
+    el.classList.remove('playing');
+  });
+  document.querySelectorAll('#daroodContent .playing-line').forEach(function(el){
+    el.classList.remove('playing-line');
+  });
+}
+
+function focusDaroodLine(idx, lineSelector){
+  clearDaroodFocus();
+  var card = $('daroodCard_' + idx);
+  if(!card) return;
+  card.classList.add('playing');
+  if(lineSelector){
+    var lineEl = card.querySelector(lineSelector);
+    if(lineEl) lineEl.classList.add('playing-line');
+  }
+  try {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch(_){}
+}
+
+var _daroodPlayAllActive = false;
+var _daroodPlayAllRunId = 0;
+var _daroodIncludeEn = false;
+var _daroodIncludeUr = false;
+
+function toggleDaroodUrMode(){
+  _daroodIncludeUr = !_daroodIncludeUr;
+  var b = $('daroodUrModeBtn');
+  if(b){
+    b.textContent = _daroodIncludeUr ? '+UR: ON' : '+UR: OFF';
+    b.classList.toggle('active-tr', _daroodIncludeUr);
+  }
+}
+window.toggleDaroodUrMode = toggleDaroodUrMode;
+
+function toggleDaroodEnMode(){
+  _daroodIncludeEn = !_daroodIncludeEn;
+  var b = $('daroodEnModeBtn');
+  if(b){
+    b.textContent = _daroodIncludeEn ? '+EN: ON' : '+EN: OFF';
+    b.classList.toggle('active-tr', _daroodIncludeEn);
+  }
+}
+window.toggleDaroodEnMode = toggleDaroodEnMode;
+
+function stopDaroodPlayAll(){
+  _daroodPlayAllActive = false;
+  _daroodPlayAllRunId++;
+  clearDaroodFocus();
+  var btn = $('daroodPlayAllBtn');
+  if(btn){ btn.textContent = '▶ Play All'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+  var st = $('daroodPlayStatus');
+  if(st) st.textContent = (st.id === 'asmaPlayStatus') ? 'Ready — Arabic Base' : 'Ready — Tap Play All';
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+}
+window.stopDaroodPlayAll = stopDaroodPlayAll;
+
+async function togglePlayAllDarood(){
+  if(_daroodPlayAllActive){
+    stopDaroodPlayAll();
+    return;
+  }
+  var forms = (typeof DAROOD_DATA !== 'undefined' && DAROOD_DATA && Array.isArray(DAROOD_DATA.forms)) ? DAROOD_DATA.forms : [];
+  if(!forms.length){
+    toast('No Salawat prayers available to play.');
+    return;
+  }
+  if(typeof stopAllAudio === 'function') stopAllAudio();
+  _daroodPlayAllActive = true;
+  var runId = ++_daroodPlayAllRunId;
+  var btn = $('daroodPlayAllBtn');
+  var st = $('daroodPlayStatus');
+  if(btn){ btn.textContent = '■ Stop'; btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
+
+  for(var i = 0; i < forms.length; i++){
+    if(!_daroodPlayAllActive || runId !== _daroodPlayAllRunId) break;
+    var f = forms[i] || {};
+    var shortTitle = (f.title || ('Salawat ' + (i + 1))).split('(')[0].trim();
+    if(st) st.textContent = 'Playing ' + (i + 1) + ' / ' + forms.length + ': ' + shortTitle;
+    try {
+      if(f.ar){
+        focusDaroodLine(i, '.darood-line-ar');
+        await playTTS(f.ar, 'ar', { keepSession: (i > 0) });
+        if(!_daroodPlayAllActive || runId !== _daroodPlayAllRunId) break;
+      }
+      if(_daroodIncludeEn && f.en){
+        focusDaroodLine(i, '.darood-line-en');
+        await playTTS(f.en, 'en', { keepSession: true });
+        if(!_daroodPlayAllActive || runId !== _daroodPlayAllRunId) break;
+      }
+      if(_daroodIncludeUr && f.ur){
+        focusDaroodLine(i, '.ur-tr');
+        await playTTS(f.ur, 'ur', { keepSession: true });
+        if(!_daroodPlayAllActive || runId !== _daroodPlayAllRunId) break;
+      }
+    } catch(_){}
+    if(!_daroodPlayAllActive || runId !== _daroodPlayAllRunId) break;
+    await new Promise(function(res){ setTimeout(res, 260); });
+  }
+  if(runId === _daroodPlayAllRunId){
+    _daroodPlayAllActive = false;
+    clearDaroodFocus();
+    if(btn){ btn.textContent = '▶ Play All'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+    if(st) st.textContent = (st.id === 'asmaPlayStatus') ? 'Ready — Arabic Base' : 'Ready — Tap Play All';
+  }
+}
+window.togglePlayAllDarood = togglePlayAllDarood;
+
 
 var aiAutoSpeak = localStorage.getItem('noor_ai_autospeak') === '1';
 var aiVoiceLang = localStorage.getItem('noor_ai_voice_lang') || 'auto';
