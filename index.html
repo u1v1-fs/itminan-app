@@ -934,6 +934,7 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
     <div class="menu-layout">
       <div class="side-menu">
         <button class="side-btn ib-side active" data-ib="ghusl">Ghusl</button>
+        <button class="side-btn ib-side" data-ib="azaan">Azaan/Iqamah</button>
         <button class="side-btn ib-side" data-ib="wudu">Wudu</button>
         <button class="side-btn ib-side" data-ib="salah">How to Offer Salah</button>
         <button class="side-btn ib-side" data-ib="guide">Nafl/Special Prayers</button>
@@ -1120,7 +1121,55 @@ main { padding: 10px 12px 80px; max-width: 900px; margin: 0 auto; }
 
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
         <span class="muted" id="aiVoiceStatus" style="font-size:11px;">🎙️ Tap Mic to speak your Islamic question</span>
-        <button type="button" class="btn-chip" id="aiAutoSpeakBtn" title="Automatically read AI replies aloud">🔊 Voice Reply: OFF</button>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <select id="aiVoiceLangSelect" aria-label="Voice input language" title="Voice input language" style="background:var(--card2);color:var(--text);border:1px solid rgba(212,175,55,.25);border-radius:8px;padding:4px 8px;font-size:11px;">
+            <option value="auto">🎙️ Lang: App Default</option>
+            <optgroup label="English Dialects">
+              <option value="en-IN">English — India (en-IN)</option>
+              <option value="en-US">English — US (en-US)</option>
+              <option value="en-GB">English — UK (en-GB)</option>
+              <option value="en-AU">English — Australia (en-AU)</option>
+              <option value="en-CA">English — Canada (en-CA)</option>
+              <option value="en-ZA">English — South Africa (en-ZA)</option>
+            </optgroup>
+            <optgroup label="Arabic Dialects">
+              <option value="ar-SA">Arabic — Saudi Arabia (ar-SA)</option>
+              <option value="ar-AE">Arabic — UAE / Gulf (ar-AE)</option>
+              <option value="ar-EG">Arabic — Egypt (ar-EG)</option>
+              <option value="ar-DZ">Arabic — Algeria / Darija (ar-DZ)</option>
+              <option value="ar-MA">Arabic — Morocco (ar-MA)</option>
+              <option value="ar-JO">Arabic — Jordan / Levant (ar-JO)</option>
+              <option value="ar-IQ">Arabic — Iraq (ar-IQ)</option>
+            </optgroup>
+            <optgroup label="South Asian Languages">
+              <option value="ur-IN">Urdu — India (ur-IN)</option>
+              <option value="ur-PK">Urdu — Pakistan (ur-PK)</option>
+              <option value="hi-IN">Hindi — India (hi-IN)</option>
+              <option value="te-IN">Telugu — India (te-IN)</option>
+              <option value="ta-IN">Tamil — India (ta-IN)</option>
+              <option value="ta-SG">Tamil — Singapore (ta-SG)</option>
+              <option value="kn-IN">Kannada — India (kn-IN)</option>
+              <option value="ml-IN">Malayalam — India (ml-IN)</option>
+              <option value="bn-IN">Bengali — India (bn-IN)</option>
+              <option value="bn-BD">Bengali — Bangladesh (bn-BD)</option>
+              <option value="gu-IN">Gujarati — India (gu-IN)</option>
+              <option value="mr-IN">Marathi — India (mr-IN)</option>
+            </optgroup>
+            <optgroup label="Global Islamic &amp; Regional">
+              <option value="tr-TR">Turkish — Turkey (tr-TR)</option>
+              <option value="id-ID">Indonesian — Indonesia (id-ID)</option>
+              <option value="ms-MY">Malay — Malaysia (ms-MY)</option>
+              <option value="fr-FR">French — France (fr-FR)</option>
+              <option value="fr-CA">French — Canada (fr-CA)</option>
+              <option value="de-DE">German — Germany (de-DE)</option>
+              <option value="es-ES">Spanish — Spain (es-ES)</option>
+              <option value="da-DK">Danish — Denmark (da-DK)</option>
+              <option value="sw-KE">Swahili — East Africa (sw-KE)</option>
+              <option value="ha-NG">Hausa — West Africa (ha-NG)</option>
+            </optgroup>
+          </select>
+          <button type="button" class="btn-chip" id="aiAutoSpeakBtn" title="Automatically read AI replies aloud">🔊 Voice Reply: OFF</button>
+        </div>
       </div>
       <div class="ai-input-row">
         <button type="button" class="btn-secondary" id="aiMicBtn" title="Voice input (Speech-to-Text)" style="padding:10px 12px;border-color:rgba(212,175,55,.35);">🎙️</button>
@@ -1429,6 +1478,9 @@ const state = {
   reciter: localStorage.getItem('noor_reciter') || RECITERS[0].id,
   urduTranslator: localStorage.getItem('noor_urdu_translator') || 'translations/urdu_shamshad_ali_khan_46kbps',
   reciterGender: localStorage.getItem('noor_reciter_gender') || 'all',
+  ttsVoice: localStorage.getItem('noor_tts_voice') || 'auto',
+  arTtsVoice: localStorage.getItem('noor_ar_tts_voice') || 'auto',
+  trTtsVoice: localStorage.getItem('noor_tr_tts_voice') || 'auto',
   speed: parseFloat(localStorage.getItem('noor_speed') || '1'),
   repeat: parseInt(localStorage.getItem('noor_repeat') || '1'),
   translit: localStorage.getItem('noor_translit') === '1',
@@ -1989,7 +2041,7 @@ function ttsBtn(text, lang, label, autoTranslate){
   if(!text) return '';
   var id = ttsRegSeq++;
   ttsRegistry.set(id, {text: String(text), lang: lang || 'ar', autoTranslate: !!autoTranslate});
-  return '<button class="btn-chip" onclick="playTTSById('+id+')">'+label+'</button>';
+  return '<button class="btn-chip" data-tts-lang="'+(lang || 'ar')+'" onclick="playTTSById('+id+')">'+label+'</button>';
 }
 const TR_AUDIO_LANGS = [
   {code:'ur', label:'🔊 Urdu'},
@@ -2051,10 +2103,74 @@ window.playTTSById = playTTSById;
 let ttsSessionId = 0;
 let cachedVoices = [];
 
+function buildTtsVoiceOptionsHtml(filterPrefix){
+  var maleVoices = [], femaleVoices = [], otherVoices = [];
+  var list = cachedVoices || [];
+  if(filterPrefix){
+    var langMatches = list.filter(function(v){ return (v.lang || '').toLowerCase().startsWith(filterPrefix); });
+    if(langMatches.length) list = langMatches;
+  }
+  list.forEach(function(v){
+    var g = classifyVoiceGender(v);
+    var id = v.voiceURI || v.name;
+    var label = v.name + (v.lang ? ' [' + v.lang + ']' : '');
+    var opt = '<option value="' + id.replace(/"/g, '&quot;') + '">' + label + '</option>';
+    if(g === 'male') maleVoices.push(opt);
+    else if(g === 'female') femaleVoices.push(opt);
+    else otherVoices.push(opt);
+  });
+  var out = '<option value="auto">Auto (Follow Reciter Gender)</option>';
+  out += '<option value="preset:male">Male — Masculine Voice</option>';
+  out += '<option value="preset:female">Female — Feminine Voice</option>';
+  if(maleVoices.length) out += '<optgroup label="Male TTS Voices (' + maleVoices.length + ')">' + maleVoices.join('') + '</optgroup>';
+  if(femaleVoices.length) out += '<optgroup label="Female TTS Voices (' + femaleVoices.length + ')">' + femaleVoices.join('') + '</optgroup>';
+  if(otherVoices.length) out += '<optgroup label="Other / System Voices (' + otherVoices.length + ')">' + otherVoices.join('') + '</optgroup>';
+  return out;
+}
+
+function populateTtsVoiceSelect(){
+  if('speechSynthesis' in window){
+    try { cachedVoices = window.speechSynthesis.getVoices() || []; } catch(e){}
+  }
+  var allVoices = cachedVoices || [];
+  var mCnt = allVoices.filter(function(v){ return classifyVoiceGender(v) === 'male'; }).length;
+  var fCnt = allVoices.filter(function(v){ return classifyVoiceGender(v) === 'female'; }).length;
+  var allHtml = buildTtsVoiceOptionsHtml('');
+  var sel = $('setTtsVoice');
+  if(sel){
+    sel.innerHTML = allHtml;
+    var cur = state.ttsVoice || 'auto';
+    sel.value = cur;
+    if(sel.value !== cur) sel.value = 'auto';
+  }
+  var arSel = $('setArTtsVoice');
+  if(arSel){
+    arSel.innerHTML = allHtml;
+    var curAr = state.arTtsVoice || 'auto';
+    arSel.value = curAr;
+    if(arSel.value !== curAr) arSel.value = 'auto';
+  }
+  var trSel = $('setTrTtsVoice');
+  if(trSel){
+    trSel.innerHTML = allHtml;
+    var curTr = state.trTtsVoice || 'auto';
+    trSel.value = curTr;
+    if(trSel.value !== curTr) trSel.value = 'auto';
+  }
+  var diag = $('ttsVoicesDiag');
+  if(diag){
+    var cnt = allVoices.length;
+    diag.textContent = cnt > 0
+      ? ('Detected browser voices: ' + cnt + ' (' + mCnt + ' Male, ' + fCnt + ' Female)')
+      : 'Detected browser voices: 0 on this browser/device — using Online TTS fallback (single server voice). Install a Male voice in your OS/browser settings for a distinct male voice.';
+  }
+}
+
 function loadVoices(){
   if('speechSynthesis' in window){
     try { cachedVoices = window.speechSynthesis.getVoices() || []; } catch(e){}
   }
+  populateTtsVoiceSelect();
 }
 loadVoices();
 if('speechSynthesis' in window && 'onvoiceschanged' in window.speechSynthesis){
@@ -2063,11 +2179,16 @@ if('speechSynthesis' in window && 'onvoiceschanged' in window.speechSynthesis){
 
 function stopAllAudio(){
   ttsSessionId++;
-  try { player.pause(); } catch(e){}
-  try { ttsPlayer.pause(); ttsPlayer.removeAttribute('src'); ttsPlayer.load(); } catch(e){}
-  try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(e){}
+  try { player.pause(); player.currentTime = 0; } catch(e){}
+  try { ttsPlayer.pause(); ttsPlayer.currentTime = 0; ttsPlayer.removeAttribute('src'); ttsPlayer.load(); } catch(e){}
+  try {
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+      setTimeout(function(){ try { window.speechSynthesis.cancel(); } catch(_){} }, 25);
+    }
+  } catch(e){}
   isPlaying = false;
-  updatePlayBtn();
+  if(typeof updatePlayBtn === 'function') updatePlayBtn();
 }
 
 function normalizeForTTS(text, lang){
@@ -2174,7 +2295,7 @@ var KNOWN_FEMALE_VOICES = [
 ];
 
 var KNOWN_MALE_VOICES = [
-  'david','ravi','mark','willem','hamdan','ali','ismail','shaker','basil','tim','fahad','rami','ahmed',
+  'david','ravi','mark','willem','hamdan','hamed','ali','ismail','shaker','basil','tim','fahad','rami','ahmed',
   'jamal','abdullah','muadh','hamid','yasser','hadi','saleh','enric','antonin','aled','jeppe','jonas','jan',
   'florian','conrad','killian','william','liam','ryan','thomas','sam','connor','prabhat','chilemba','abeo',
   'mitchell','james','wayne','elimu','andrew','brian','guy','christopher','eric','roger','steffan','luke',
@@ -2221,6 +2342,7 @@ function speakWithBrowser(text, langCode, preferFemale, voiceGender){
   return new Promise((resolve, reject) => {
     if(!('speechSynthesis' in window)) return reject(new Error('No SpeechSynthesis'));
     loadVoices();
+    if(!cachedVoices || !cachedVoices.length) return reject(new Error('No browser voices installed'));
     var map = {en:'en-US', kn:'kn-IN', te:'te-IN', ta:'ta-IN', hi:'hi-IN', ur:'ur-PK', fr:'fr-FR', dz:'ar-DZ', ber:'fr-FR', ar:'ar-SA', da:'da-DK'};
     var target = map[langCode] || 'en-US';
     var prefix = (langCode || 'en').toLowerCase();
@@ -2232,30 +2354,36 @@ function speakWithBrowser(text, langCode, preferFemale, voiceGender){
     var u = new SpeechSynthesisUtterance(text);
     u.lang = target;
     u.rate = state.speed || 1;
-    var effectiveGender = (langCode !== 'ar') ? (voiceGender || state.trVoiceGender || 'auto') : (preferFemale ? 'female' : 'auto');
+    var langVoicePref = (langCode === 'ar') ? (state.arTtsVoice || 'auto') : (state.trTtsVoice || 'auto');
+    var savedTtsVoice = (langVoicePref && langVoicePref !== 'auto') ? langVoicePref : (state.ttsVoice || 'auto');
+    var presetGender = (savedTtsVoice === 'preset:male') ? 'male' : ((savedTtsVoice === 'preset:female') ? 'female' : null);
+    var recG = (state.reciterGender === 'male' || state.reciterGender === 'female') ? state.reciterGender : 'auto';
+    var trG = (state.trVoiceGender === 'male' || state.trVoiceGender === 'female') ? state.trVoiceGender : 'auto';
+    var effectiveGender = voiceGender || presetGender || (preferFemale ? 'female' : null) || (recG !== 'auto' ? recG : (langCode !== 'ar' ? trG : 'auto'));
+    var explicitVoice = null;
+    if(savedTtsVoice && savedTtsVoice !== 'auto' && !savedTtsVoice.startsWith('preset:')){
+      explicitVoice = (cachedVoices || []).find(function(v){ return (v.voiceURI || v.name) === savedTtsVoice || v.name === savedTtsVoice; }) || null;
+    }
     var pool = matching.length ? matching : cachedVoices;
-    var chosen = null;
-    if(pool && pool.length){
+    var chosen = explicitVoice;
+    if(!chosen && pool && pool.length){
       chosen = pickVoiceByGender(pool, effectiveGender, langCode);
-      if(effectiveGender === 'male' && chosen && classifyVoiceGender(chosen) === 'female'){
-        var altMale = cachedVoices.find(function(v){ return classifyVoiceGender(v) === 'male'; })
-                   || cachedVoices.find(function(v){ return classifyVoiceGender(v) !== 'female'; });
-        chosen = altMale || null;
-      }
-      if(chosen){
-        u.voice = chosen;
-      }
-      var gKind = classifyVoiceGender(chosen);
-      if(effectiveGender === 'female'){
-        u.pitch = (gKind === 'female') ? 1.0 : 1.22;
-      } else if(effectiveGender === 'male'){
-        u.pitch = (gKind === 'male') ? 0.96 : 0.72;
+    }
+    if(chosen){
+      u.voice = chosen;
+    }
+    var gKind = classifyVoiceGender(chosen);
+    if(effectiveGender === 'female'){
+      u.pitch = (gKind === 'female') ? 1.02 : 1.22;
+    } else if(effectiveGender === 'male'){
+      if(gKind === 'male'){
+        u.pitch = 0.95;
       } else {
-        u.pitch = 1.0;
+        u.pitch = 0.72;
+        u.rate = Math.max(0.65, (state.speed || 1) * 0.95);
       }
-    } else if(langCode !== 'ar'){
-      if(effectiveGender === 'female') u.pitch = 1.22;
-      else if(effectiveGender === 'male') u.pitch = 0.72;
+    } else {
+      u.pitch = 1.0;
     }
     if(chosen && chosen.lang){
       u.lang = chosen.lang;
@@ -2287,14 +2415,14 @@ function speakAdhkar(text, lang){
 
 async function playTTS(text, lang, opts){
   opts = opts || {};
-  var code = ({en:'en',kn:'kn',te:'te',ta:'ta',hi:'hi',ur:'ur',fr:'fr',dz:'dz',ber:'ber',ar:'ar',da:'da'})[lang] || 'ar';
+  var code = ({en:'en',kn:'kn',te:'te',ta:'ta',hi:'hi',ur:'ur',fr:'fr',dz:'dz',ber:'ber',ar:'ar',da:'da',ml:'ml',bn:'bn',gu:'gu',mr:'mr',tr:'tr',id:'id',ms:'ms',de:'de',es:'es',sw:'sw',ha:'ha'})[lang] || (lang ? String(lang).split('-')[0].toLowerCase() : 'ar');
   var rawText = String(text || '').trim();
   if(!rawText) return;
   if(!opts.keepSession){
     stopAllAudio();
   }
   var mySession = ttsSessionId;
-  var langNames = {en:'English',kn:'Kannada',te:'Telugu',ta:'Tamil',hi:'Hindi',ur:'Urdu',fr:'French',dz:'Algerian Darija',ber:'Tamazight',ar:'Arabic',da:'Danish'};
+  var langNames = {en:'English',kn:'Kannada',te:'Telugu',ta:'Tamil',hi:'Hindi',ur:'Urdu',fr:'French',dz:'Algerian Darija',ber:'Tamazight',ar:'Arabic',da:'Danish',ml:'Malayalam',bn:'Bengali',gu:'Gujarati',mr:'Marathi',tr:'Turkish',id:'Indonesian',ms:'Malay',de:'German',es:'Spanish',sw:'Swahili',ha:'Hausa'};
   var activeLangLabel = langNames[code] || code.toUpperCase();
   showMiniPlayer(activeLangLabel + ' Audio');
   setMiniStatus('Loading...');
@@ -2316,36 +2444,64 @@ async function playTTS(text, lang, opts){
     var urEntry = RECITERS.find(function(r){ return r.id === state.urduTranslator; });
     if(urEntry && urEntry.gender) defaultUrGender = urEntry.gender;
   }
-  var trGender = opts.voiceGender || (code !== 'ar' ? ((state.trVoiceGender && state.trVoiceGender !== 'auto') ? state.trVoiceGender : defaultUrGender) : 'auto');
-  var preferBrowserForGender = (code !== 'ar') && (trGender === 'male' || trGender === 'female') && ('speechSynthesis' in window);
+  var langVoicePref = (code === 'ar') ? (state.arTtsVoice || 'auto') : (state.trTtsVoice || 'auto');
+  var savedTtsVoice = (langVoicePref && langVoicePref !== 'auto') ? langVoicePref : (state.ttsVoice || 'auto');
+  var presetGender = (savedTtsVoice === 'preset:male') ? 'male' : ((savedTtsVoice === 'preset:female') ? 'female' : null);
+  var hasExplicitVoice = (savedTtsVoice && savedTtsVoice !== 'auto' && !savedTtsVoice.startsWith('preset:'));
+  var recGenderPref = (state.reciterGender === 'male' || state.reciterGender === 'female') ? state.reciterGender : 'auto';
+  var trGenderPref = (state.trVoiceGender && state.trVoiceGender !== 'auto') ? state.trVoiceGender : defaultUrGender;
+  var trGender = opts.voiceGender || presetGender || (opts.preferFemale ? 'female' : null) || (recGenderPref !== 'auto' ? recGenderPref : (code !== 'ar' ? trGenderPref : 'auto'));
+  var preferBrowserForGender = (hasExplicitVoice || trGender === 'male' || trGender === 'female') && ('speechSynthesis' in window);
   for(var i = 0; i < chunks.length; i++){
     if(mySession !== ttsSessionId) return;
     var chunk = chunks[i];
     var played = false;
+    try { player.pause(); } catch(_){}
+    try { ttsPlayer.pause(); ttsPlayer.currentTime = 0; } catch(_){}
+    try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(_){}
     if(preferBrowserForGender){
       try {
         loadVoices();
-        var vPrefix = (code === 'dz') ? 'ar' : ((code === 'ber') ? 'fr' : code.toLowerCase());
-        var hasLangVoice = cachedVoices.some(v => (v.lang || '').toLowerCase().startsWith(vPrefix));
-        var modeTag = trGender + (hasLangVoice ? '' : '·sys');
+        var modeTag = hasExplicitVoice ? 'custom' : trGender;
         setMiniStatus('Playing (' + activeLangLabel + ' · ' + modeTag + ')...');
         await speakWithBrowser(chunk, code, trGender === 'female', trGender);
         played = true;
       } catch(_){}
     }
     if(!played && navigator.onLine){
+      try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(_){}
       var endpoints = [
-        'https://translate.google.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=tw-ob&q=' + encodeURIComponent(chunk),
-        'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=gtx&q=' + encodeURIComponent(chunk)
+        'https://translate.google.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=tw-ob&q=' + encodeURIComponent(chunk) + '&_r=' + i + '_' + mySession,
+        'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=' + encodeURIComponent(ttsTl) + '&client=gtx&q=' + encodeURIComponent(chunk) + '&_r=' + i + '_' + mySession
       ];
       for(var ep = 0; ep < endpoints.length && !played; ep++){
+        if(mySession !== ttsSessionId) return;
         try {
           await new Promise((resolve, reject) => {
-            ttsPlayer.onended = () => resolve();
-            ttsPlayer.onerror = () => reject(new Error('TTS stream error'));
+            var settled = false;
+            var estMs = Math.max(3500, String(chunk || '').length * 130 + 2500);
+            var guardTimer = setTimeout(function(){
+              if(!settled){ settled = true; resolve(); }
+            }, estMs);
+            function finishOk(){
+              if(!settled){ settled = true; clearTimeout(guardTimer); resolve(); }
+            }
+            function finishErr(err){
+              if(!settled){ settled = true; clearTimeout(guardTimer); reject(err || new Error('TTS stream error')); }
+            }
+            ttsPlayer.onended = finishOk;
+            ttsPlayer.onerror = () => finishErr(new Error('TTS stream error'));
             ttsPlayer.src = endpoints[ep];
-            ttsPlayer.playbackRate = state.speed || 1;
-            ttsPlayer.play().then(() => setMiniStatus('Playing (' + activeLangLabel + ')...')).catch(reject);
+            try { ttsPlayer.load(); } catch(_){}
+            var baseSpd = state.speed || 1;
+            if(trGender === 'male'){
+              try { ttsPlayer.preservesPitch = false; ttsPlayer.mozPreservesPitch = false; ttsPlayer.webkitPreservesPitch = false; } catch(_){}
+              ttsPlayer.playbackRate = Math.max(0.72, baseSpd * 0.85);
+            } else {
+              try { ttsPlayer.preservesPitch = true; ttsPlayer.mozPreservesPitch = true; ttsPlayer.webkitPreservesPitch = true; } catch(_){}
+              ttsPlayer.playbackRate = baseSpd;
+            }
+            ttsPlayer.play().then(() => setMiniStatus('Playing (' + activeLangLabel + (trGender !== 'auto' ? (' · ' + trGender) : '') + ')...')).catch(finishErr);
           });
           played = true;
         } catch(e){
@@ -2355,6 +2511,7 @@ async function playTTS(text, lang, opts){
     }
     if(!played && mySession === ttsSessionId){
       try {
+        try { ttsPlayer.pause(); } catch(_){}
         loadVoices();
         var prefix = (code === 'dz') ? 'ar' : ((code === 'ber') ? 'fr' : code.toLowerCase());
         var hasMatchingVoice = cachedVoices.some(v => (v.lang || '').toLowerCase().startsWith(prefix));
@@ -2363,8 +2520,8 @@ async function playTTS(text, lang, opts){
           toast(activeLangLabel + ' TTS voice is not installed on this device and online audio could not be reached.');
           return;
         }
-        setMiniStatus('Playing (' + activeLangLabel + ')...');
-        await speakWithBrowser(chunk, code, !!opts.preferFemale, trGender);
+        setMiniStatus('Playing (' + activeLangLabel + (trGender !== 'auto' ? (' · ' + trGender) : '') + ')...');
+        await speakWithBrowser(chunk, code, trGender === 'female', trGender);
         played = true;
       } catch(e){
         setMiniStatus('Unavailable');
@@ -2613,7 +2770,19 @@ function renderToday(){
   html += `<span class="badge gold">${dayTheme(now)}</span></div>`;
   var cityName = getResolvedCityName();
   html += `<div style="margin-top:6px;font-size:11px;color:var(--muted);">Location: ${state.lat.toFixed(4)}, ${state.lon.toFixed(4)} (${cityName}) <button style="padding:2px 8px;border-radius:6px;background:var(--card2);font-size:10px;margin-left:6px;" onclick="detectGPS()">Detect GPS</button></div>`;
-  $('todayInfo').innerHTML = html;
+  var todayEl = $('todayInfo');
+  if(todayEl) todayEl.innerHTML = html;
+  var gregEl = $('homeGregDate');
+  if(gregEl) gregEl.textContent = now.toLocaleDateString();
+  var hijriRowEl = $('homeHijriRow');
+  if(hijriRowEl){
+    var badges = `<span class="badge gold">${hijriDate(now)}</span> `;
+    if(isAyyamAlBid(now)) badges += `<span class="badge green">Ayyam al-Bid (White Days)</span> `;
+    badges += `<span class="badge gold">${dayTheme(now)}</span>`;
+    hijriRowEl.innerHTML = badges;
+  }
+  var locTextEl = $('homeLocText');
+  if(locTextEl) locTextEl.textContent = `📍 ${state.lat.toFixed(4)}, ${state.lon.toFixed(4)} (${cityName})`;
 }
 
 function renderRecs(){
@@ -2673,7 +2842,9 @@ function renderGoals(){
       <div class="progress"><div style="width:${pct}%"></div></div>
     </div>`;
   });
-  $('goals').innerHTML = html;
+  var goalsEl = $('goals');
+  if(!goalsEl) return;
+  goalsEl.innerHTML = html;
 }
 function bumpGoal(k, n){ 
   var g = state.goals[todayStr()] || {morning:0, evening:0, tasbih:0};
@@ -3514,6 +3685,7 @@ async function renderAdhkar(filter=''){
       <div class="muted" style="font-size:11px;margin-bottom:6px;">Virtue: ${d.virtue||''}</div>
       <div class="counter-row" style="flex-wrap:wrap;">
         <button class="counter-btn" data-id="${d.id}" title="Increment counter">+</button>
+        <button class="btn-chip counter-loop-btn" data-id="${d.id}" data-goal="${goal}" title="Play Arabic audio in loop until goal reached" style="padding:5px 9px;font-size:11px;">🔁 Loop</button>
         <div class="count-display" id="cnt_${d.id}">${cnt}</div>
         <div class="goal">/ ${goal}</div>
         <button class="btn-chip counter-reset-btn" data-id="${d.id}" title="Reset counter" style="padding:4px 9px;font-size:11px;">↺ Reset</button>
@@ -3579,12 +3751,220 @@ function resetAllWeeklyChartCounters(){
 }
 window.resetAllWeeklyChartCounters = resetAllWeeklyChartCounters;
 
+var _dhikrLoopState = { active: false, id: null, token: 0 };
+
+function stopDhikrAudioLoop(){
+  _dhikrLoopState.active = false;
+  _dhikrLoopState.id = null;
+  _dhikrLoopState.token++;
+  document.querySelectorAll('.counter-loop-btn').forEach(function(b){
+    b.classList.remove('active-tr');
+    b.textContent = '🔁 Loop';
+  });
+}
+window.stopDhikrAudioLoop = stopDhikrAudioLoop;
+
+function getDhikrGoalById(id, cardEl){
+  var allPool = ((typeof adhkarData !== 'undefined' && adhkarData && adhkarData.adhkar) ? adhkarData.adhkar : [])
+    .concat(typeof ISSUE_SUPPLICATIONS !== 'undefined' ? ISSUE_SUPPLICATIONS : [])
+    .concat(typeof WEEKLY_CHART_ADHKAR !== 'undefined' ? WEEKLY_CHART_ADHKAR : []);
+  var found = allPool.find(function(x){ return String(x.id) === String(id); });
+  if(found && Number(found.count) > 0) return Number(found.count);
+  var card = cardEl || ($('cnt_' + id) ? $('cnt_' + id).closest('.dhikr') : null);
+  var goalEl = card ? card.querySelector('.goal') : null;
+  if(goalEl){
+    var m = String(goalEl.textContent || '').match(/(\d+)/);
+    if(m && Number(m[1]) > 0) return Number(m[1]);
+  }
+  return 1;
+}
+
+function getDhikrArabicTextById(id, cardEl){
+  var allPool = ((typeof adhkarData !== 'undefined' && adhkarData && adhkarData.adhkar) ? adhkarData.adhkar : [])
+    .concat(typeof ISSUE_SUPPLICATIONS !== 'undefined' ? ISSUE_SUPPLICATIONS : [])
+    .concat(typeof WEEKLY_CHART_ADHKAR !== 'undefined' ? WEEKLY_CHART_ADHKAR : []);
+  var found = allPool.find(function(x){ return String(x.id) === String(id); });
+  if(found && found.ar) return String(found.ar);
+  var card = cardEl || ($('cnt_' + id) ? $('cnt_' + id).closest('.dhikr') : null);
+  var arEl = card ? card.querySelector('.ar') : null;
+  if(arEl && String(arEl.textContent || '').trim()) return String(arEl.textContent).trim();
+  return found && found.en ? String(found.en) : '';
+}
+
+async function playSingleLoopArabicPass(arText, stepLabel, myToken){
+  if(!arText || !_dhikrLoopState.active || _dhikrLoopState.token !== myToken) return;
+  try { player.pause(); player.currentTime = 0; } catch(_){}
+  try { ttsPlayer.pause(); ttsPlayer.currentTime = 0; } catch(_){}
+  try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(_){}
+  isPlaying = false;
+  if(typeof updatePlayBtn === 'function') updatePlayBtn();
+
+  var clean = (typeof normalizeForTTS === 'function') ? normalizeForTTS(arText, 'ar') : String(arText).trim();
+  if(!clean) clean = String(arText).trim();
+  var chunks = (typeof chunkTextForTTS === 'function') ? chunkTextForTTS(clean, 175) : [clean];
+
+  for(var i = 0; i < chunks.length; i++){
+    if(!_dhikrLoopState.active || _dhikrLoopState.token !== myToken) return;
+    var chunk = chunks[i];
+    var doneChunk = false;
+
+    if(navigator.onLine){
+      var endpoints = [
+        'https://translate.google.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=' + encodeURIComponent(chunk) + '&_lp=' + myToken + '_' + i + '_' + Date.now(),
+        'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=ar&client=gtx&q=' + encodeURIComponent(chunk) + '&_lp=' + myToken + '_' + i + '_' + Date.now()
+      ];
+      for(var ep = 0; ep < endpoints.length && !doneChunk; ep++){
+        if(!_dhikrLoopState.active || _dhikrLoopState.token !== myToken) return;
+        try {
+          await new Promise(function(resolve){
+            var settled = false;
+            var estMs = Math.max(3000, String(chunk || '').length * 120 + 2200);
+            var timer = setTimeout(function(){
+              if(!settled){ settled = true; resolve(); }
+            }, estMs);
+            function finish(){
+              if(!settled){ settled = true; clearTimeout(timer); resolve(); }
+            }
+            ttsPlayer.onended = finish;
+            ttsPlayer.onerror = finish;
+            ttsPlayer.src = endpoints[ep];
+            try { ttsPlayer.load(); } catch(_){}
+            ttsPlayer.playbackRate = state.speed || 1;
+            if(typeof setMiniStatus === 'function') setMiniStatus(stepLabel);
+            var p = ttsPlayer.play();
+            if(p && typeof p.catch === 'function') p.catch(finish);
+          });
+          doneChunk = true;
+        } catch(_){
+          try { ttsPlayer.pause(); } catch(_){}
+        }
+      }
+    }
+
+    if(!doneChunk && _dhikrLoopState.active && _dhikrLoopState.token === myToken && ('speechSynthesis' in window)){
+      try {
+        if(typeof speakWithBrowser === 'function'){
+          if(typeof setMiniStatus === 'function') setMiniStatus(stepLabel);
+          await speakWithBrowser(chunk, 'ar', false, 'auto');
+          doneChunk = true;
+        }
+      } catch(_){}
+    }
+
+    if(!doneChunk && _dhikrLoopState.active && _dhikrLoopState.token === myToken){
+      await new Promise(function(r){ setTimeout(r, 1400); });
+    }
+  }
+}
+
+async function toggleDhikrAudioLoop(id, btnEl, cardEl){
+  if(!id) return;
+  var wasSameActive = _dhikrLoopState.active && String(_dhikrLoopState.id) === String(id);
+  stopDhikrAudioLoop();
+  ttsSessionId++;
+  try { player.pause(); player.currentTime = 0; } catch(e){}
+  try { ttsPlayer.pause(); ttsPlayer.currentTime = 0; ttsPlayer.removeAttribute('src'); ttsPlayer.load(); } catch(e){}
+  try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(e){}
+  isPlaying = false;
+  if(typeof updatePlayBtn === 'function') updatePlayBtn();
+
+  if(wasSameActive){
+    if(typeof toast === 'function') toast('Loop stopped');
+    return;
+  }
+
+  var hostCard = cardEl || ($('cnt_' + id) ? $('cnt_' + id).closest('.dhikr') : null);
+  var rawGoal = getDhikrGoalById(id, hostCard);
+  var targetCount = Math.max(1, Number(rawGoal) || 1);
+  var arText = getDhikrArabicTextById(id, hostCard);
+  if(!arText){
+    if(typeof toast === 'function') toast('No Arabic audio text available for this item');
+    return;
+  }
+
+  var key = 'dhikr_' + id;
+  if(!state.goals || typeof state.goals !== 'object') state.goals = {};
+  var curCount = Number(state.goals[key] || 0);
+  if(curCount >= targetCount){
+    state.goals[key] = 0;
+    save('noor_goals', JSON.stringify(state.goals));
+    if($('cnt_' + id)) $('cnt_' + id).textContent = '0';
+    curCount = 0;
+  }
+
+  var myToken = ++_dhikrLoopState.token;
+  _dhikrLoopState.active = true;
+  _dhikrLoopState.id = String(id);
+
+  var loopBtn = btnEl || (hostCard ? hostCard.querySelector('.counter-loop-btn') : null);
+  var loopIndex = 0;
+  while(_dhikrLoopState.active && _dhikrLoopState.token === myToken){
+    curCount = Number(state.goals[key] || 0);
+    if(curCount >= targetCount) break;
+    loopIndex++;
+    var labelGoal = String(targetCount);
+    var stepLabel = 'Loop #' + loopIndex + ' (' + (curCount + 1) + '/' + labelGoal + ')';
+    var curBtn = (hostCard && hostCard.querySelector('.counter-loop-btn')) || loopBtn;
+    if(curBtn){
+      curBtn.classList.add('active-tr');
+      curBtn.textContent = '⏹ Stop (' + (curCount + 1) + '/' + labelGoal + ')';
+    }
+    if(typeof showMiniPlayer === 'function') showMiniPlayer('Arabic Loop · ' + stepLabel);
+    if(typeof setMiniStatus === 'function') setMiniStatus(stepLabel);
+
+    await playSingleLoopArabicPass(arText, stepLabel, myToken);
+    if(!_dhikrLoopState.active || _dhikrLoopState.token !== myToken) break;
+
+    incrementDhikrCounter(id, hostCard);
+    var updatedCount = Number(state.goals[key] || 0);
+    if(updatedCount >= targetCount) break;
+    await new Promise(function(r){ setTimeout(r, 150); });
+  }
+
+  if(_dhikrLoopState.token === myToken){
+    var finalCount = Number(state.goals[key] || 0);
+    stopDhikrAudioLoop();
+    try { player.pause(); player.currentTime = 0; } catch(_){}
+    try { ttsPlayer.pause(); ttsPlayer.currentTime = 0; ttsPlayer.removeAttribute('src'); ttsPlayer.load(); } catch(_){}
+    try { if('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch(_){}
+    if(typeof setMiniStatus === 'function') setMiniStatus('Target reached (' + finalCount + '/' + targetCount + ')');
+    if(finalCount >= targetCount && typeof toast === 'function'){
+      toast('Loop stopped at target (' + finalCount + '/' + targetCount + ')');
+    }
+  }
+}
+
+function isArabicActionButton(btn){
+  if(!btn) return false;
+  if(btn.dataset && btn.dataset.ttsLang === 'ar') return true;
+  var oc = String(btn.getAttribute('onclick') || '');
+  var m = oc.match(/playTTSById\((\d+)\)/);
+  if(m && typeof ttsRegistry !== 'undefined'){
+    var reg = ttsRegistry.get(Number(m[1]));
+    if(reg && reg.lang === 'ar') return true;
+  }
+  var txt = String(btn.textContent || '').toLowerCase();
+  var title = String(btn.getAttribute('title') || '').toLowerCase();
+  if(/arabic/.test(txt) || /arabic/.test(title)){
+    if(!/(english|urdu|hindi|telugu|tamil|kannada|malayalam|bengali|gujarati|marathi|french|darija|tamazight|danish|translation)/.test(txt + ' ' + title)){
+      return true;
+    }
+  }
+  return false;
+}
+
 if(!window._autoCounterDelegated){
   window._autoCounterDelegated = true;
   document.addEventListener('click', function(e){
     var resetBtn = e.target.closest('.counter-reset-btn');
     if(resetBtn){
+      stopDhikrAudioLoop();
       resetDhikrCounter(resetBtn.dataset.id, resetBtn.closest('.dhikr'));
+      return;
+    }
+    var loopBtn = e.target.closest('.counter-loop-btn');
+    if(loopBtn){
+      toggleDhikrAudioLoop(loopBtn.dataset.id, loopBtn, loopBtn.closest('.dhikr'));
       return;
     }
     var cntBtn = e.target.closest('.counter-btn');
@@ -3592,9 +3972,9 @@ if(!window._autoCounterDelegated){
       incrementDhikrCounter(cntBtn.dataset.id, cntBtn.closest('.dhikr'));
       return;
     }
-    // Auto-increment counter whenever any action/audio button is pressed inside a container that has a counter
+    // Only increment counter when the "Arabic" button is pressed inside a counter container; ignore all other buttons (translations, etc.)
     var anyBtn = e.target.closest('button');
-    if(anyBtn){
+    if(anyBtn && isArabicActionButton(anyBtn)){
       var row = anyBtn.closest('.counter-row');
       var host = row || anyBtn.closest('.dhikr');
       var linkedCounter = host ? host.querySelector('.counter-btn[data-id]') : null;
@@ -3831,12 +4211,99 @@ function renderIbaadatTab(tab){
     } else if(tab==='ghusl'){
       container.innerHTML = '<div class="card"><h3>Ghusl (Purification Bath)</h3><div id="ghuslGuide"></div></div>';
       renderRichSteps('ghuslGuide', GHUSL_STEPS);
+    } else if(tab==='azaan'){
+      if(sub){
+        sub.style.display='flex';
+        sub.innerHTML = '<button class="sub-tab active" data-aisub="azaan">📢 Azaan</button><button class="sub-tab" data-aisub="iqamah">🕌 Iqamah</button>';
+        var showAiSub = function(mode){
+          if(mode==='iqamah'){
+            container.innerHTML = '<div class="card"><h3>Iqamah (Call to Stand for Salah)</h3><div id="iqamahGuide"></div></div>';
+            renderRichSteps('iqamahGuide', IQAMAH_STEPS);
+          } else {
+            container.innerHTML = '<div class="card"><h3>Azaan (Call to Prayer)</h3><div id="azaanGuide"></div></div>';
+            renderRichSteps('azaanGuide', AZAAN_STEPS);
+          }
+        };
+        document.querySelectorAll('#ibaadatSubTabs button[data-aisub]').forEach(function(b){
+          b.addEventListener('click', function(){
+            document.querySelectorAll('#ibaadatSubTabs button').forEach(function(x){ x.classList.remove('active'); });
+            b.classList.add('active');
+            showAiSub(b.dataset.aisub);
+          });
+        });
+        showAiSub('azaan');
+      } else {
+        container.innerHTML = '<div class="card"><h3>Azaan (Call to Prayer)</h3><div id="azaanGuide"></div></div>';
+        renderRichSteps('azaanGuide', AZAAN_STEPS);
+      }
     } else if(tab==='duas'){
       container.innerHTML = '<div class="card"><h3>Salah Duas</h3><div id="salahDuas"></div></div>';
       renderSalahDuasInto($('salahDuas'));
     }
   }
 }
+
+
+const AZAAN_STEPS = [
+  {
+    n: 1,
+    arTitle: 'اللَّهُ أَكْبَرُ وَالشَّهَادَتَانِ',
+    title: 'Takbir & Shahadah of Azaan',
+    ar: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ ۝ أَشْهَدُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ ۝ أَشْهَدُ أَنَّ مُحَمَّدًا رَّسُولُ اللّٰهِ',
+    translit: 'Allāhu Akbar, Allāhu Akbar; Ashhadu an lā ilāha illā Allāh; Ashhadu anna Muḥammadar Rasūlullāh',
+    en: 'Allah is the Greatest. I bear witness that there is no true deity worthy of worship except Allah. I bear witness that Muhammad (ﷺ) is the Messenger of Allah.',
+    ur: 'اللہ سب سے بڑا ہے۔ میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی سچا معبود نہیں۔ میں گواہی دیتا ہوں کہ محمد ﷺ اللہ کے رسول ہیں۔',
+    note: 'Listener repeats the exact words of the Mu’adhin.',
+    ref: 'Sahih Muslim 385 · Sunan Abi Dawud 499'
+  },
+  {
+    n: 2,
+    arTitle: 'حَيَّ عَلَى الصَّلَاةِ وَحَيَّ عَلَى الْفَلَاحِ',
+    title: 'Call to Salah, Success & Fajr Addition',
+    ar: 'حَيَّ عَلَى الصَّلَاةِ ۝ حَيَّ عَلَى الْفَلَاحِ ۝ [فِي الْفَجْرِ: الصَّلَاةُ خَيْرٌ مِّنَ النَّوْمِ]',
+    translit: 'Ḥayya ‘alaṣ-Ṣalāh; Ḥayya ‘alal-Falāḥ; [Fajr: Aṣ-ṣalātu khayrun minan-nawm]',
+    en: 'Come to prayer. Come to success. In Fajr Azaan: "Prayer is better than sleep." When hearing Hayya ‘alas-Salah / Hayya ‘alal-Falah, the listener says: "Lā ḥawla wa lā quwwata illā billāh" (There is no power nor strength except through Allah).',
+    ur: 'نماز کی طرف آؤ۔ فلاح و کامیابی کی طرف آؤ۔ [فجر میں: نماز نیند سے بہتر ہے۔] سننے والا "لا حول ولا قوۃ إلا باللہ" کہے۔',
+    note: 'Followed by closing Takbir ("Allāhu Akbar") and "Lā ilāha illā Allāh."',
+    ref: 'Sahih al-Bukhari 611 · Sahih Muslim 385'
+  },
+  {
+    n: 3,
+    arTitle: 'دُعَاءُ بَعْدَ الْأَذَانِ',
+    title: 'Supplication After Azaan',
+    ar: 'اللَّهُمَّ رَبَّ هٰذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَّحْمُودًا الَّذِي وَعَدْتَّهُ',
+    translit: 'Allāhumma Rabba hādhihid-da‘watit-tāmmah waṣ-ṣalātil-qā’imah, āti Muḥammadanil-wasīlata wal-faḍīlah, wab‘ath-hu maqāmam maḥmūdanil-ladhī wa‘adtah',
+    en: 'O Allah, Lord of this complete call and established prayer, grant Muhammad (ﷺ) the rank of Wasila and high virtue, and raise him to the praised station that You have promised him.',
+    ur: 'اے اللہ! اس مکمل پکار اور قائم ہونے والی نماز کے رب، محمد ﷺ کو وسیلہ اور فضیلت عطا فرما، اور انہیں اس مقامِ محمود پر فائز فرما جس کا تو نے ان سے وعدہ کیا ہے۔',
+    note: 'Reciting this after Azaan makes the intercession (Shafa‘ah) of Prophet Muhammad ﷺ lawful for the reciter.',
+    ref: 'Sahih al-Bukhari 614'
+  }
+];
+
+const IQAMAH_STEPS = [
+  {
+    n: 1,
+    arTitle: 'الْإِقَامَةُ — Call to Stand for Prayer',
+    title: 'Opening Takbir & Shahadah of Iqamah',
+    ar: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ ۝ أَشْهَدُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ ۝ أَشْهَدُ أَنَّ مُحَمَّدًا رَّسُولُ اللّٰهِ',
+    translit: 'Allāhu Akbar, Allāhu Akbar; Ashhadu an lā ilāha illā Allāh; Ashhadu anna Muḥammadar Rasūlullāh',
+    en: 'Called immediately before congregational prayer begins so worshippers prepare and align their rows.',
+    ur: 'باجماعت نماز شروع ہونے سے فوراً پہلے اقامت کہی جاتی ہے تاکہ نمازی صفیں درست کر کے تیار ہو جائیں۔',
+    note: 'Stand calmly and straighten the rows without rushing.',
+    ref: 'Sahih al-Bukhari 636 · Sahih Muslim 602'
+  },
+  {
+    n: 2,
+    arTitle: 'قَدْ قَامَتِ الصَّلَاةُ',
+    title: 'Call to Prayer, Success & "Prayer Has Begun"',
+    ar: 'حَيَّ عَلَى الصَّلَاةِ ۝ حَيَّ عَلَى الْفَلَاحِ ۝ قَدْ قَامَتِ الصَّلَاةُ ۝ اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ ۝ لَا إِلٰهَ إِلَّا اللّٰهُ',
+    translit: 'Ḥayya ‘alaṣ-Ṣalāh; Ḥayya ‘alal-Falāḥ; Qad qāmatiṣ-ṣalāh; Allāhu Akbar; Lā ilāha illā Allāh',
+    en: 'Come to prayer. Come to success. Indeed, the prayer has begun. Allah is the Greatest. There is no true deity worthy of worship except Allah.',
+    ur: 'نماز کی طرف آؤ۔ فلاح و کامیابی کی طرف آؤ۔ بے شک نماز کھڑی ہو گئی ہے۔ اللہ سب سے بڑا ہے۔ اللہ کے سوا کوئی سچا معبود نہیں۔',
+    note: 'Walk calmly when coming to Salah and do not run even if the Iqamah has started.',
+    ref: 'Sahih al-Bukhari 636 · Sahih Muslim 602'
+  }
+];
 
 function renderSalahGuides(){
   renderIbaadatTab('salah');
@@ -5202,6 +5669,11 @@ function renderSettingsTab(tab){
     <div class="card"><h3>Reciter gender</h3><div class="row"><label>Gender</label><select id="reciterGender"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div></div>`;
   } else if(tab==='audio'){
     container.innerHTML = `<div class="card"><h3>Audio</h3>
+      <div class="row"><label>Reciter gender (Quran &amp; Non-Quranic TTS)</label><select id="setAudioReciterGender"><option value="all">All (Auto)</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div class="row"><label>Arabic TTS Voice (Adhkar, Duas, Azaan/Iqamah &amp; Guides)</label><div class="ctrl"><select id="setArTtsVoice" style="max-width:210px;"></select><button type="button" class="btn-chip" id="btnTestArTts" title="Test Arabic TTS voice">▶</button></div></div>
+      <div class="row"><label>Translation TTS Voice (English, Urdu, Hindi, Telugu, Tamil &amp; More)</label><div class="ctrl"><select id="setTrTtsVoice" style="max-width:210px;"></select><button type="button" class="btn-chip" id="btnTestTrTtsSingle" title="Test Translation TTS voice">▶</button></div></div>
+      <div class="row"><label>Default / Fallback TTS Voice (All Spoken Audio)</label><div class="ctrl"><select id="setTtsVoice" style="max-width:210px;"></select><button type="button" class="btn-chip" id="btnRefreshTtsVoices" title="Refresh browser TTS voices">⟳</button></div></div>
+      <div class="row" style="border:none;padding-top:4px;"><span class="muted" id="ttsVoicesDiag">Detected browser voices: checking...</span></div>
       <div class="row"><label>Default reciter</label><select id="setReciter"></select></div>
       <div class="row"><label>Urdu translator (Audio)</label><select id="setUrduTranslator"></select></div>
       <div class="row"><label>Default translation language</label><select id="setDefaultTrLang"></select></div>
@@ -5224,6 +5696,7 @@ function renderSettingsTab(tab){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
         <button type="button" class="btn-primary" id="btnTestReciterAudio">▶ Test Reciter</button>
+        <button type="button" class="btn-chip" id="btnTestNonQuranVoice">🗣️ Test Non-Quranic Voice</button>
         <button type="button" class="btn-chip" id="btnTestTrAudio">🔊 Test Translation Voice</button>
         <button type="button" class="btn-chip" id="btnTestUrduTrAudio">🎙️ Test Urdu Translator</button>
         <button type="button" class="btn-chip" id="btnCheckMp3Stream">🌐 Check MP3 Stream</button>
@@ -5335,6 +5808,83 @@ function bindSettingsTabEvents(tab){
     var rg = $('reciterGender'); if(rg) rg.addEventListener('change', e=>{ state.reciterGender=e.target.value; save('noor_reciter_gender',e.target.value); populateSelects(); });
   }
   if(tab==='audio'){
+    populateTtsVoiceSelect();
+    var satv = $('setArTtsVoice');
+    if(satv){
+      satv.value = state.arTtsVoice || 'auto';
+      satv.addEventListener('change', function(e){
+        state.arTtsVoice = e.target.value;
+        save('noor_ar_tts_voice', state.arTtsVoice);
+        toast('Arabic TTS Voice: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var sttv = $('setTrTtsVoice');
+    if(sttv){
+      sttv.value = state.trTtsVoice || 'auto';
+      sttv.addEventListener('change', function(e){
+        state.trTtsVoice = e.target.value;
+        save('noor_tr_tts_voice', state.trTtsVoice);
+        toast('Translation TTS Voice: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var bTestAr = $('btnTestArTts');
+    if(bTestAr){
+      bTestAr.addEventListener('click', function(){
+        var stEl = $('testAudioStatus');
+        var lbl = ($('setArTtsVoice') && $('setArTtsVoice').selectedIndex >= 0) ? $('setArTtsVoice').options[$('setArTtsVoice').selectedIndex].text : 'Auto';
+        if(stEl) stEl.textContent = 'Testing Arabic TTS (' + lbl + ')...';
+        playTTS('بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ', 'ar');
+      });
+    }
+    var bTestTrS = $('btnTestTrTtsSingle');
+    if(bTestTrS){
+      bTestTrS.addEventListener('click', function(){
+        var stEl = $('testAudioStatus');
+        var lbl = ($('setTrTtsVoice') && $('setTrTtsVoice').selectedIndex >= 0) ? $('setTrTtsVoice').options[$('setTrTtsVoice').selectedIndex].text : 'Auto';
+        var trCode = ($('setDefaultTrLang') && $('setDefaultTrLang').value) || state.defaultTrLang || state.trLang || 'en';
+        if(stEl) stEl.textContent = 'Testing Translation TTS (' + trCode.toUpperCase() + ' · ' + lbl + ')...';
+        playTTS('In the name of Allah, the Most Gracious, the Most Merciful.', trCode);
+      });
+    }
+    var stv = $('setTtsVoice');
+    if(stv){
+      stv.value = state.ttsVoice || 'auto';
+      stv.addEventListener('change', function(e){
+        state.ttsVoice = e.target.value;
+        save('noor_tts_voice', state.ttsVoice);
+        toast('Default TTS Voice: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var bRefTts = $('btnRefreshTtsVoices');
+    if(bRefTts){
+      bRefTts.addEventListener('click', function(){
+        loadVoices();
+        toast('Refreshed ' + (cachedVoices ? cachedVoices.length : 0) + ' browser TTS voices');
+      });
+    }
+    var sarg = $('setAudioReciterGender');
+    if(sarg){
+      sarg.value = state.reciterGender || 'all';
+      sarg.addEventListener('change', function(e){
+        state.reciterGender = e.target.value;
+        save('noor_reciter_gender', state.reciterGender);
+        var rgMain = $('reciterGender'); if(rgMain) rgMain.value = state.reciterGender;
+        populateSelects();
+        toast('Reciter gender: ' + e.target.options[e.target.selectedIndex].text);
+      });
+    }
+    var bTestNonQ = $('btnTestNonQuranVoice');
+    if(bTestNonQ){
+      bTestNonQ.addEventListener('click', async function(){
+        var stEl = $('testAudioStatus');
+        var gMode = (state.reciterGender === 'male' || state.reciterGender === 'female') ? state.reciterGender : 'auto';
+        loadVoices();
+        var selTxt = ($('setTtsVoice') && $('setTtsVoice').selectedIndex >= 0) ? $('setTtsVoice').options[$('setTtsVoice').selectedIndex].text : gMode;
+        if(stEl) stEl.textContent = 'Testing Non-Quranic Arabic + English (' + selTxt + ')...';
+        await playTTS('رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا', 'ar');
+        await playTTS('My Lord, have mercy upon them as they brought me up when I was small.', 'en', { keepSession: true });
+      });
+    }
     var sr = $('setReciter'); if(sr) sr.addEventListener('change', e=>{ state.reciter=e.target.value; save('noor_reciter',e.target.value); var rs=$('reciterSelect'); if(rs) rs.value=e.target.value; });
     var sut = $('setUrduTranslator');
     if(sut){
@@ -5725,6 +6275,9 @@ function bindEvents(){
         if(k && k.startsWith('noor_')) snap[k] = localStorage.getItem(k);
       }
       state.settingsSnapshot = JSON.stringify(snap);
+      var activeSetBtn = document.querySelector('.set-side.active');
+      var setTab = (activeSetBtn && activeSetBtn.dataset && activeSetBtn.dataset.set) || 'general';
+      if(typeof renderSettings === 'function') renderSettings(setTab);
     }
     state.view=v;
     document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -5781,6 +6334,10 @@ function bindEvents(){
     state.tz = parseFloat(localStorage.getItem('noor_tz')) || CITIES[0].tz;
     state.lead = parseInt(localStorage.getItem('noor_lead') || '0');
     state.reciter = localStorage.getItem('noor_reciter') || RECITERS[0].id;
+    state.reciterGender = localStorage.getItem('noor_reciter_gender') || 'all';
+    state.ttsVoice = localStorage.getItem('noor_tts_voice') || 'auto';
+    state.arTtsVoice = localStorage.getItem('noor_ar_tts_voice') || 'auto';
+    state.trTtsVoice = localStorage.getItem('noor_tr_tts_voice') || 'auto';
     state.speed = parseFloat(localStorage.getItem('noor_speed') || '1');
     state.repeat = parseInt(localStorage.getItem('noor_repeat') || '1');
     state.translit = localStorage.getItem('noor_translit') === '1';
@@ -6275,6 +6832,17 @@ async function queryIslamicAI(question){
   if((useProvider === 'gemini' || useProvider === 'groq') && !aiApiKey){
     useProvider = 'free';
   }
+  var targetCode = getAiReplySpeakCode();
+  var langLabelMap = {
+    en:'English', ur:'Urdu', hi:'Hindi', te:'Telugu', ta:'Tamil', kn:'Kannada',
+    ar:'Arabic', dz:'Algerian Arabic (Darija)', fr:'French', da:'Danish',
+    ml:'Malayalam', bn:'Bengali', gu:'Gujarati', mr:'Marathi',
+    tr:'Turkish', id:'Indonesian', ms:'Malay', de:'German', es:'Spanish',
+    sw:'Swahili', ha:'Hausa'
+  };
+  var effectiveQuestion = (aiVoiceLang && aiVoiceLang !== 'auto' && targetCode !== 'en' && langLabelMap[targetCode])
+    ? (question + '\n\n[Please respond in ' + langLabelMap[targetCode] + ', keeping Qur\'an and Hadith citations clear.]')
+    : question;
 
   // Tier 1A: Google Gemini Free API Key
   if(useProvider === 'gemini'){
@@ -6284,7 +6852,7 @@ async function queryIslamicAI(question){
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           system_instruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
-          contents: [{ role: 'user', parts: [{ text: question }] }]
+          contents: [{ role: 'user', parts: [{ text: effectiveQuestion }] }]
         })
       });
       if(gRes.ok){
@@ -6308,7 +6876,7 @@ async function queryIslamicAI(question){
           model: 'llama-3.3-70b-versatile',
           messages: [
             { role: 'system', content: AI_SYSTEM_PROMPT },
-            { role: 'user', content: question }
+            { role: 'user', content: effectiveQuestion }
           ],
           temperature: 0.3
         })
@@ -6330,7 +6898,7 @@ async function queryIslamicAI(question){
         body: JSON.stringify({
           messages: [
             { role: 'system', content: AI_SYSTEM_PROMPT },
-            { role: 'user', content: question }
+            { role: 'user', content: effectiveQuestion }
           ],
           model: 'openai'
         })
@@ -6375,7 +6943,7 @@ async function handleAiSend(presetQ){
   renderAiMessages();
   if(aiAutoSpeak){
     var speakPlain = String(res.text || '').replace(/[*#`]/g, '').replace(/\s+/g, ' ').trim();
-    var speakLang = (state.lang && state.lang !== 'ar') ? state.lang : 'en';
+    var speakLang = getAiReplySpeakCode();
     if(speakPlain) playTTS(speakPlain, speakLang);
   }
 }
@@ -6493,6 +7061,48 @@ function renderDarood(){
 }
 
 var aiAutoSpeak = localStorage.getItem('noor_ai_autospeak') === '1';
+var aiVoiceLang = localStorage.getItem('noor_ai_voice_lang') || 'auto';
+function getAiReplySpeakCode(){
+  var sel = $('aiVoiceLangSelect');
+  var chosen = (sel && sel.value) ? sel.value : (aiVoiceLang || 'auto');
+  if(chosen && chosen !== 'auto'){
+    if(chosen === 'ar-DZ') return 'dz';
+    var base = chosen.split('-')[0].toLowerCase();
+    var supported = {en:'en',ur:'ur',hi:'hi',te:'te',ta:'ta',kn:'kn',ar:'ar',fr:'fr',da:'da',ml:'ml',bn:'bn',gu:'gu',mr:'mr',tr:'tr',id:'id',ms:'ms',de:'de',es:'es',sw:'sw',ha:'ha'};
+    return supported[base] || base;
+  }
+  return state.lang || 'en';
+}
+function getAiReplySpeakCode(){
+  var sel = $('aiVoiceLangSelect');
+  var chosen = (sel && sel.value) ? sel.value : (aiVoiceLang || 'auto');
+  var bcpMap = {
+    'en-US':'en', 'ur-PK':'ur', 'hi-IN':'hi', 'te-IN':'te',
+    'ta-IN':'ta', 'kn-IN':'kn', 'ar-SA':'ar', 'fr-FR':'fr', 'da-DK':'da'
+  };
+  if(chosen && chosen !== 'auto' && bcpMap[chosen]) return bcpMap[chosen];
+  return state.lang || 'en';
+}
+function getAiReplySpeakCode(){
+  var sel = $('aiVoiceLangSelect');
+  var chosen = (sel && sel.value) ? sel.value : (aiVoiceLang || 'auto');
+  var bcpMap = {
+    'en-US':'en', 'ur-PK':'ur', 'hi-IN':'hi', 'te-IN':'te',
+    'ta-IN':'ta', 'kn-IN':'kn', 'ar-SA':'ar', 'fr-FR':'fr', 'da-DK':'da'
+  };
+  if(chosen && chosen !== 'auto' && bcpMap[chosen]) return bcpMap[chosen];
+  return state.lang || 'en';
+}
+function getAiReplySpeakCode(){
+  var sel = $('aiVoiceLangSelect');
+  var chosen = (sel && sel.value) ? sel.value : (aiVoiceLang || 'auto');
+  var bcpMap = {
+    'en-US':'en', 'ur-PK':'ur', 'hi-IN':'hi', 'te-IN':'te',
+    'ta-IN':'ta', 'kn-IN':'kn', 'ar-SA':'ar', 'fr-FR':'fr', 'da-DK':'da'
+  };
+  if(chosen && chosen !== 'auto' && bcpMap[chosen]) return bcpMap[chosen];
+  return state.lang || 'en';
+}
 var aiRecognition = null;
 var aiListening = false;
 
@@ -6521,6 +7131,41 @@ function initAskAI(){
   var micBtn = $('aiMicBtn');
   var vStatus = $('aiVoiceStatus');
   var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var _aiNoSpeechRetries = 0;
+  var _aiHeardSpeech = false;
+  function setMicListeningUI(active){
+    aiListening = active;
+    if(!micBtn) return;
+    micBtn.textContent = active ? '⏹️' : '🎙️';
+    micBtn.style.background = active ? 'var(--red)' : '';
+    micBtn.style.color = active ? '#fff' : '';
+  }
+  function resolveAiSpeechLang(){
+    var sel = $('aiVoiceLangSelect');
+    var chosen = (sel && sel.value) ? sel.value : (aiVoiceLang || 'auto');
+    if(chosen && chosen !== 'auto') return chosen;
+    var langMap = {en:'en-US', kn:'kn-IN', te:'te-IN', ta:'ta-IN', hi:'hi-IN', ur:'ur-PK', fr:'fr-FR', dz:'ar-DZ', ber:'fr-FR', ar:'ar-SA', da:'da-DK'};
+    return langMap[state.lang] || 'en-US';
+  }
+  var vLangSel = $('aiVoiceLangSelect');
+  if(vLangSel){
+    vLangSel.value = aiVoiceLang || 'auto';
+    vLangSel.addEventListener('change', function(){
+      aiVoiceLang = this.value || 'auto';
+      save('noor_ai_voice_lang', aiVoiceLang);
+      toast('Voice input language: ' + (aiVoiceLang === 'auto' ? 'App Default' : aiVoiceLang));
+    });
+  }
+  function startSpeechCapture(){
+    if(!aiRecognition || !micBtn) return;
+    aiRecognition.lang = resolveAiSpeechLang();
+    try { aiRecognition.start(); } catch(err){
+      setMicListeningUI(false);
+      var msg = 'Could not start microphone: ' + (err && err.message ? err.message : 'check mic permission');
+      if(vStatus) vStatus.textContent = '⚠️ ' + msg;
+      toast(msg);
+    }
+  }
   if(micBtn){
     if(!SpeechRec){
       micBtn.title = 'Voice input not supported in this browser';
@@ -6529,14 +7174,23 @@ function initAskAI(){
       aiRecognition = new SpeechRec();
       aiRecognition.continuous = false;
       aiRecognition.interimResults = true;
+      aiRecognition.maxAlternatives = 1;
       aiRecognition.onstart = function(){
-        aiListening = true;
-        micBtn.textContent = '⏹️';
-        micBtn.style.background = 'var(--red)';
-        micBtn.style.color = '#fff';
-        if(vStatus) vStatus.textContent = '🎙️ Listening... Speak your Islamic question now';
+        _aiHeardSpeech = false;
+        setMicListeningUI(true);
+        if(vStatus){
+          vStatus.textContent = _aiNoSpeechRetries > 0
+            ? '🎙️ Retrying mic... Speak clearly now'
+            : '🎙️ Listening... Speak your Islamic question now';
+        }
+      };
+      aiRecognition.onspeechstart = function(){
+        _aiHeardSpeech = true;
+        if(vStatus) vStatus.textContent = '🎙️ Hearing voice... keep speaking';
       };
       aiRecognition.onresult = function(event){
+        _aiHeardSpeech = true;
+        _aiNoSpeechRetries = 0;
         var transcript = '';
         var isFinal = false;
         for(var i = event.resultIndex; i < event.results.length; i++){
@@ -6546,7 +7200,6 @@ function initAskAI(){
         var inpEl = $('aiQuestionInput');
         if(inpEl) inpEl.value = transcript;
         if(isFinal && transcript.trim()){
-          // Automatically enable voice reply for hands-free voice chat if user spoke their question
           if(!aiAutoSpeak){
             aiAutoSpeak = true;
             save('noor_ai_autospeak', '1');
@@ -6556,34 +7209,61 @@ function initAskAI(){
         }
       };
       aiRecognition.onerror = function(e){
-        aiListening = false;
-        micBtn.textContent = '🎙️';
-        micBtn.style.background = '';
-        micBtn.style.color = '';
-        var errMsg = (e && e.error === 'not-allowed')
-          ? 'Microphone permission denied. Allow mic access in browser settings.'
-          : ('Voice input error: ' + (e && e.error ? e.error : 'try again'));
+        setMicListeningUI(false);
+        var errCode = (e && e.error) ? e.error : 'unknown';
+        if(errCode === 'no-speech' && _aiNoSpeechRetries < 1){
+          _aiNoSpeechRetries++;
+          if(vStatus) vStatus.textContent = '🎙️ No speech detected yet — retrying mic...';
+          setTimeout(function(){ if(!aiListening) startSpeechCapture(); }, 250);
+          return;
+        }
+        _aiNoSpeechRetries = 0;
+        var errMsg = '';
+        if(errCode === 'not-allowed' || errCode === 'service-not-allowed'){
+          errMsg = 'Microphone permission blocked. Allow Mic in browser/site settings (or serve over HTTPS/localhost).';
+        } else if(errCode === 'audio-capture'){
+          errMsg = 'No active microphone detected or another app is using it.';
+        } else if(errCode === 'network'){
+          errMsg = 'Speech service network error — check internet or type your question.';
+        } else if(errCode === 'no-speech'){
+          errMsg = 'No speech heard (no-speech). Check mic input/volume & tap 🎙️ to try again.';
+        } else {
+          errMsg = 'Voice input error (' + errCode + ') — tap 🎙️ or type below.';
+        }
         if(vStatus) vStatus.textContent = '⚠️ ' + errMsg;
         toast(errMsg);
       };
       aiRecognition.onend = function(){
-        aiListening = false;
-        micBtn.textContent = '🎙️';
-        micBtn.style.background = '';
-        micBtn.style.color = '';
+        setMicListeningUI(false);
         if(vStatus && vStatus.textContent.indexOf('Listening') !== -1){
           vStatus.textContent = '🎙️ Tap Mic to speak your Islamic question';
         }
       };
       micBtn.addEventListener('click', function(){
         if(aiListening){
+          _aiNoSpeechRetries = 0;
           try { aiRecognition.stop(); } catch(_){}
           return;
         }
+        _aiNoSpeechRetries = 0;
         stopAllAudio();
-        var langMap = {en:'en-US', kn:'kn-IN', te:'te-IN', ta:'ta-IN', hi:'hi-IN', ur:'ur-PK', fr:'fr-FR', dz:'ar-DZ', ber:'fr-FR', ar:'ar-SA', da:'da-DK'};
-        aiRecognition.lang = langMap[state.lang] || 'en-US';
-        try { aiRecognition.start(); } catch(err){ toast('Could not start microphone: ' + err.message); }
+        if(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'){
+          if(vStatus) vStatus.textContent = '🎙️ Checking microphone...';
+          navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+            try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch(_){}
+            startSpeechCapture();
+          }).catch(function(permErr){
+            var denied = permErr && (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError');
+            var pMsg = denied
+              ? 'Microphone permission denied. Allow Mic access in browser settings.'
+              : 'Starting speech recognition...';
+            if(vStatus) vStatus.textContent = '⚠️ ' + pMsg;
+            if(!denied) startSpeechCapture();
+            else toast(pMsg);
+          });
+        } else {
+          startSpeechCapture();
+        }
       });
     }
   }
